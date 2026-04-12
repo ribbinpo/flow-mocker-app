@@ -1,0 +1,143 @@
+import type { Flow } from "@/types";
+import { DEFAULT_HEADERS } from "@/utils/constants";
+
+export const SAMPLE_FLOWS: Flow[] = [
+  {
+    id: "sample-flow-1",
+    name: "User Authentication Flow",
+    description: "Login, fetch profile, and update token",
+    nodes: [
+      {
+        id: "sample-node-1-1",
+        label: "Login",
+        method: "POST",
+        url: "https://api.example.com/auth/login",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: {},
+        body: '{ "email": "user@example.com", "password": "secret" }',
+        dataMapping: [],
+        position: { x: 100, y: 150 },
+      },
+      {
+        id: "sample-node-1-2",
+        label: "Get Profile",
+        method: "GET",
+        url: "https://api.example.com/user/profile",
+        headers: { ...DEFAULT_HEADERS, Authorization: "Bearer {{token}}" },
+        queryParams: {},
+        body: "",
+        dataMapping: [
+          {
+            sourceNodeId: "sample-node-1-1",
+            sourcePath: "data.token",
+            targetField: "header",
+            targetKey: "Authorization",
+          },
+        ],
+        position: { x: 400, y: 150 },
+      },
+      {
+        id: "sample-node-1-3",
+        label: "Refresh Token",
+        method: "PUT",
+        url: "https://api.example.com/auth/refresh",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: {},
+        body: '{ "refreshToken": "{{refreshToken}}" }',
+        dataMapping: [
+          {
+            sourceNodeId: "sample-node-1-1",
+            sourcePath: "data.refreshToken",
+            targetField: "body",
+            targetKey: "refreshToken",
+          },
+        ],
+        position: { x: 700, y: 150 },
+      },
+    ],
+    edges: [
+      { id: "sample-edge-1-1", source: "sample-node-1-1", target: "sample-node-1-2" },
+      { id: "sample-edge-1-2", source: "sample-node-1-2", target: "sample-node-1-3" },
+    ],
+    envVariables: {
+      base_url: "https://api.example.com",
+    },
+    createdAt: "2025-04-10T10:00:00.000Z",
+    updatedAt: "2025-04-10T10:00:00.000Z",
+  },
+  {
+    id: "sample-flow-2",
+    name: "Product CRUD Flow",
+    description: "List, create, update, and delete products",
+    nodes: [
+      {
+        id: "sample-node-2-1",
+        label: "List Products",
+        method: "GET",
+        url: "https://api.example.com/products",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: { page: "1", limit: "10" },
+        body: "",
+        dataMapping: [],
+        position: { x: 100, y: 150 },
+      },
+      {
+        id: "sample-node-2-2",
+        label: "Create Product",
+        method: "POST",
+        url: "https://api.example.com/products",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: {},
+        body: '{ "name": "New Product", "price": 29.99 }',
+        dataMapping: [],
+        position: { x: 400, y: 150 },
+      },
+      {
+        id: "sample-node-2-3",
+        label: "Update Product",
+        method: "PUT",
+        url: "https://api.example.com/products/1",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: {},
+        body: '{ "name": "Updated Product", "price": 39.99 }',
+        dataMapping: [
+          {
+            sourceNodeId: "sample-node-2-2",
+            sourcePath: "data.id",
+            targetField: "url",
+            targetKey: "id",
+          },
+        ],
+        position: { x: 700, y: 150 },
+      },
+      {
+        id: "sample-node-2-4",
+        label: "Delete Product",
+        method: "DELETE",
+        url: "https://api.example.com/products/1",
+        headers: { ...DEFAULT_HEADERS },
+        queryParams: {},
+        body: "",
+        dataMapping: [
+          {
+            sourceNodeId: "sample-node-2-2",
+            sourcePath: "data.id",
+            targetField: "url",
+            targetKey: "id",
+          },
+        ],
+        position: { x: 1000, y: 150 },
+      },
+    ],
+    edges: [
+      { id: "sample-edge-2-1", source: "sample-node-2-1", target: "sample-node-2-2" },
+      { id: "sample-edge-2-2", source: "sample-node-2-2", target: "sample-node-2-3" },
+      { id: "sample-edge-2-3", source: "sample-node-2-3", target: "sample-node-2-4" },
+    ],
+    envVariables: {
+      base_url: "https://api.example.com",
+    },
+    createdAt: "2025-04-11T14:30:00.000Z",
+    updatedAt: "2025-04-11T14:30:00.000Z",
+  },
+];

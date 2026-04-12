@@ -3,15 +3,18 @@ import { create } from "zustand";
 interface UiState {
   selectedNodeId: string | null;
   sidebarOpen: boolean;
+  logPanelOpen: boolean;
 
   selectNode: (nodeId: string | null) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setLogPanelOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
   selectedNodeId: null,
   sidebarOpen: false,
+  logPanelOpen: false,
 
   selectNode: (nodeId) =>
     set({
@@ -23,4 +26,6 @@ export const useUiStore = create<UiState>((set) => ({
     set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setLogPanelOpen: (open) => set({ logPanelOpen: open }),
 }));

@@ -16,3 +16,6 @@ export type {
   RequestConfig,
   ResponseData,
 } from "./api";
+
+export type { ApiNodeData, ApiFlowNode } from "./reactFlow";
+export { toReactFlowNode, toReactFlowEdge } from "./reactFlow";

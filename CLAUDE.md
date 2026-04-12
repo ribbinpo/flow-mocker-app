@@ -31,10 +31,13 @@ src/
 └── assets/           # Images, fonts, icons
 ```
 
-## Execution Engine (Planned)
-- Sequential execution of nodes
-- Data mapping between nodes (response → next request)
-- Basic condition handling (success / failure)
+## Execution Engine
+- Sequential execution via async generator pattern
+- Step-by-step mode (generator yields after each node)
+- Data mapping between nodes (JSONPath extract → inject into next request)
+- Environment variable resolution ({{VARIABLE}} templates)
+- Stop on failure with remaining nodes marked "skipped"
+- AbortController for cancelling mid-execution
 - Retry mechanism (future phase)
 
 ## Future Scope
@@ -63,8 +66,8 @@ src/
 
 ### Progress
 - Phase 1: Foundation → ✅ Complete
-- Phase 2: Core Pages → ⏳
-- Phase 3: Business Logic → ⏳
+- Phase 2: Core Pages → ✅ Complete
+- Phase 3: Execution Engine → ✅ Complete
 - Phase 4: API Integration → ⏳
 - Phase 5: Polish → ⏳
 
@@ -74,7 +77,18 @@ src/
 - **Stores:** flowStore, executionStore, uiStore
 - **Services:** apiClient (Axios + Zod validation)
 - **Types:** Flow, FlowNode, FlowEdge, ExecutionResult, NodeLog, RequestConfig, ResponseData
-- **Utils:** constants (HTTP_METHODS, DEFAULT_HEADERS, API_TIMEOUT_MS)
+- **Utils:** constants (HTTP_METHODS, DEFAULT_HEADERS, API_TIMEOUT_MS, FLOW_LIST, FLOW_BUILDER, NODE_CONFIG, DEFAULT_NODE)
+- **Pages:** FlowListPage, FlowBuilderPage
+- **Feature components:** ApiNode, FlowToolbar, FlowCard, CreateFlowDialog, KeyValueEditor, NodeConfigPanel
+- **Hooks:** useFlowCanvas (React Flow ↔ Zustand sync)
+- **Types:** ApiNodeData, ApiFlowNode, toReactFlowNode, toReactFlowEdge
+- **Mocks:** sampleFlows (2 sample flows for development)
+- **Services:** executionEngine (async generator, topological sort), dataMapper (JSONPath-based data mapping)
+- **Utils:** jsonPath (dot notation + array indexing resolver), envResolver ({{var}} template interpolation)
+- **Hooks:** useFlowExecution (engine ↔ store bridge with run/step/stop)
+- **Feature components:** ExecutionLogPanel, NodeLogEntry
+- **Constants:** EXECUTION (execution UI strings)
+- **Tests:** jsonPath, envResolver, dataMapper, executionEngine (41 tests)
 
 ### In Progress
 (none)
@@ -89,6 +103,15 @@ src/
 | 2025-04-12 | ESLint v9 flat config | Matches typescript-eslint v8 compatibility |
 | 2025-04-12 | Zod v4 (zod/v4 import) | Already installed as v4, use v4 API directly |
 | 2025-04-12 | ShadCN new-york style | Clean, compact design suitable for developer tools |
+| 2025-04-12 | React Flow controlled mode with local drag state | Zustand is source of truth; local useState handles ephemeral drag for smooth UX |
+| 2025-04-12 | ApiNodeData carries only render data (label, method, url) | Full FlowNode stays in Zustand; avoids duplicating heavy data in React Flow |
+| 2025-04-12 | BrowserRouter in App.tsx (not main.tsx) | Keeps main.tsx minimal; router is app-level concern |
+| 2025-04-12 | Async generator for execution engine | Consumer calls .next() for step mode or loops for run mode; natural pause/resume |
+| 2025-04-12 | Lightweight JSONPath (no library) | Dot notation + array indexing covers v1; keeps bundle small |
+| 2025-04-12 | Unknown env vars left as-is | Easier to debug than silently replacing with empty string |
+| 2025-04-12 | Body injection: top-level keys only | No nested path injection in v1; parse JSON, set key, re-stringify |
+| 2025-04-12 | Vitest for testing | Standard test runner for Vite projects; fast, native ESM support |
+| 2025-04-12 | Log panel open state in uiStore | Avoids useEffect setState lint issues; hook opens panel on run start |
 
 ## Do NOT
 - Do NOT use `any` type
