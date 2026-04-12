@@ -7,6 +7,7 @@ import type {
   RequestConfig,
 } from "@/types";
 import { resolveEnvInRequest } from "@/utils/envResolver";
+import { CookieJar } from "@/utils/cookieJar";
 import { applyDataMappings } from "./dataMapper";
 import { sendWithRetry } from "./retryExecutor";
 import { validateRequest } from "./requestValidator";
@@ -142,6 +143,7 @@ export async function* executeFlow(
   }
 
   const context: Record<string, unknown> = {};
+  const cookieJar = new CookieJar();
 
   for (let i = 0; i < order.length; i++) {
     const node = order[i];
@@ -161,6 +163,21 @@ export async function* executeFlow(
     let config = buildRequestConfig(node);
     config = resolveEnvInRequest(config, flow.envVariables);
     config = applyDataMappings(config, node.dataMapping, context);
+
+    // Inject accumulated cookies from previous steps
+    if (!cookieJar.isEmpty()) {
+      const cookieHeader = cookieJar.getCookieHeader();
+      if (cookieHeader) {
+        const existingCookie = config.headers["Cookie"] || config.headers["cookie"] || "";
+        config = {
+          ...config,
+          headers: {
+            ...config.headers,
+            Cookie: existingCookie ? `${existingCookie}; ${cookieHeader}` : cookieHeader,
+          },
+        };
+      }
+    }
 
     // Validate request before sending
     const validation = validateRequest(config);
@@ -194,6 +211,9 @@ export async function* executeFlow(
         signal,
       );
       context[node.id] = response.body;
+
+      // Collect cookies from response for subsequent steps
+      cookieJar.parseSetCookieHeaders(response.headers);
 
       const log = buildNodeLog(node, config, "success", response, null, startedAt, attempts, []);
       callbacks.onNodeComplete(log);

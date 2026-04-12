@@ -280,6 +280,89 @@ describe("executeFlow", () => {
     expect(result.value).toBe("error");
   });
 
+  it("passes cookies from previous step responses to subsequent requests", async () => {
+    mockSendWithRetry
+      .mockResolvedValueOnce({
+        response: {
+          status: 200,
+          headers: { "set-cookie": "session=abc123; Path=/; HttpOnly" },
+          body: { ok: true },
+          latencyMs: 10,
+        },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: {
+          status: 200,
+          headers: {},
+          body: { data: "private" },
+          latencyMs: 10,
+        },
+        attempts: 1,
+      });
+
+    const nodeA = makeNode("a");
+    const nodeB = makeNode("b");
+    const flow = makeFlow([nodeA, nodeB], [makeEdge("a", "b")]);
+
+    const gen = executeFlow(flow, noopCallbacks);
+    let result = await gen.next();
+    while (!result.done) {
+      result = await gen.next();
+    }
+
+    expect(mockSendWithRetry).toHaveBeenCalledTimes(2);
+    expect(mockSendWithRetry.mock.calls[1][0].headers.Cookie).toBe(
+      "session=abc123",
+    );
+  });
+
+  it("accumulates cookies across multiple steps", async () => {
+    mockSendWithRetry
+      .mockResolvedValueOnce({
+        response: {
+          status: 200,
+          headers: { "set-cookie": "session=abc" },
+          body: {},
+          latencyMs: 10,
+        },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: {
+          status: 200,
+          headers: { "set-cookie": "csrf=xyz" },
+          body: {},
+          latencyMs: 10,
+        },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: {
+          status: 200,
+          headers: {},
+          body: {},
+          latencyMs: 10,
+        },
+        attempts: 1,
+      });
+
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges = [makeEdge("a", "b"), makeEdge("b", "c")];
+    const flow = makeFlow(nodes, edges);
+
+    const gen = executeFlow(flow, noopCallbacks);
+    let result = await gen.next();
+    while (!result.done) {
+      result = await gen.next();
+    }
+
+    expect(mockSendWithRetry).toHaveBeenCalledTimes(3);
+    const thirdCallHeaders = mockSendWithRetry.mock.calls[2][0].headers;
+    expect(thirdCallHeaders.Cookie).toContain("session=abc");
+    expect(thirdCallHeaders.Cookie).toContain("csrf=xyz");
+  });
+
   it("stops on validation error", async () => {
     mockValidateRequest.mockReturnValue({
       valid: false,

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,21 +34,36 @@ export function KeyValueEditor({
   keyPlaceholder = NODE_CONFIG.KEY_PLACEHOLDER,
   valuePlaceholder = NODE_CONFIG.VALUE_PLACEHOLDER,
 }: KeyValueEditorProps) {
-  const pairs = toArray(entries);
+  const [pairs, setPairs] = useState<KeyValuePair[]>(() => toArray(entries));
+  const isInternalChange = useRef(false);
+
+  useEffect(() => {
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      return;
+    }
+    setPairs(toArray(entries));
+  }, [entries]);
+
+  const emitChange = (updated: KeyValuePair[]) => {
+    isInternalChange.current = true;
+    setPairs(updated);
+    onChange(toRecord(updated));
+  };
 
   const updatePair = (index: number, field: "key" | "value", val: string) => {
     const updated = [...pairs];
     updated[index] = { ...updated[index], [field]: val };
-    onChange(toRecord(updated));
+    emitChange(updated);
   };
 
   const removePair = (index: number) => {
     const updated = pairs.filter((_, i) => i !== index);
-    onChange(toRecord(updated));
+    emitChange(updated);
   };
 
   const addPair = () => {
-    onChange(toRecord([...pairs, { key: "", value: "" }]));
+    emitChange([...pairs, { key: "", value: "" }]);
   };
 
   return (
