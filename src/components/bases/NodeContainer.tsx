@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
-import type { ExecutionStatus } from "@/types";
+import type { ExecutionStatus, HttpMethod } from "@/types";
+import { getMethodStyle } from "@/utils/methodColors";
 
 const STATUS_STYLES: Record<ExecutionStatus, string> = {
   idle: "border-border",
@@ -12,7 +13,7 @@ const STATUS_STYLES: Record<ExecutionStatus, string> = {
 
 interface NodeContainerProps {
   label: string;
-  method: string;
+  method: HttpMethod;
   status?: ExecutionStatus;
   selected?: boolean;
   children?: ReactNode;
@@ -37,7 +38,7 @@ export function NodeContainer({
       )}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground">
+        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(method))}>
           {method}
         </span>
         <span className="truncate text-sm font-medium">{label}</span>

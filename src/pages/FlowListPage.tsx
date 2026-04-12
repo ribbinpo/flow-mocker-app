@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Workflow } from "lucide-react";
+import { Plus, Upload, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +14,8 @@ import { EmptyState } from "@/components/bases/EmptyState";
 import { FlowCard } from "@/components/features/flow-list/FlowCard";
 import { CreateFlowDialog } from "@/components/features/flow-list/CreateFlowDialog";
 import { useFlowStore } from "@/store/flowStore";
-import { FLOW_LIST, APP_NAME } from "@/utils/constants";
+import { useFlowImportExport } from "@/hooks/useFlowImportExport";
+import { FLOW_LIST, APP_NAME, IMPORT_EXPORT } from "@/utils/constants";
 
 export function FlowListPage() {
   const navigate = useNavigate();
@@ -22,6 +23,9 @@ export function FlowListPage() {
   const createFlow = useFlowStore((s) => s.createFlow);
   const renameFlow = useFlowStore((s) => s.renameFlow);
   const deleteFlow = useFlowStore((s) => s.deleteFlow);
+
+  const { exportFlow, importFlowFromFile } = useFlowImportExport();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
@@ -45,6 +49,17 @@ export function FlowListPage() {
     setDeleteTarget(null);
   };
 
+  const handleExport = (flowId: string) => {
+    const flow = flows.find((f) => f.id === flowId);
+    if (flow) exportFlow(flow);
+  };
+
+  const handleImportFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) importFlowFromFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="px-6 py-8">
       <div className="mb-8 flex items-center justify-between">
@@ -52,11 +67,24 @@ export function FlowListPage() {
           <h1 className="text-2xl font-bold">{FLOW_LIST.PAGE_TITLE}</h1>
           <p className="text-sm text-muted-foreground">{APP_NAME}</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus />
-          {FLOW_LIST.CREATE_BUTTON}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload />
+            {IMPORT_EXPORT.IMPORT_BUTTON}
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus />
+            {FLOW_LIST.CREATE_BUTTON}
+          </Button>
+        </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
 
       {flows.length === 0 ? (
         <EmptyState
@@ -78,6 +106,7 @@ export function FlowListPage() {
               flow={flow}
               onRename={setRenameTarget}
               onDelete={setDeleteTarget}
+              onExport={handleExport}
             />
           ))}
         </div>

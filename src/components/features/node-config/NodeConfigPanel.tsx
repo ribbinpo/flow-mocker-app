@@ -8,6 +8,7 @@ import { NODE_CONFIG, HTTP_METHODS } from "@/utils/constants";
 import type { RetryConfig } from "@/types";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, FlowNode } from "@/types";
+import { getMethodStyle } from "@/utils/methodColors";
 
 function MethodButton({
   method,
@@ -25,7 +26,7 @@ function MethodButton({
       className={cn(
         "rounded-md px-2 py-1 text-xs font-bold transition-colors",
         selected
-          ? "bg-primary text-primary-foreground"
+          ? cn(getMethodStyle(method), "ring-2 ring-offset-1 ring-current")
           : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
       )}
     >

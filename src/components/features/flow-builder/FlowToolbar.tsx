@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Play, SkipForward, Square, Settings2 } from "lucide-react";
+import { ArrowLeft, Download, Plus, Play, SkipForward, Square, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -10,12 +10,14 @@ import { useUiStore } from "@/store/uiStore";
 import { useExecutionStore } from "@/store/executionStore";
 import { useFlowExecution } from "@/hooks/useFlowExecution";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useFlowImportExport } from "@/hooks/useFlowImportExport";
 import {
   FLOW_BUILDER,
   DEFAULT_NODE,
   DEFAULT_HEADERS,
   EXECUTION,
   ENV_EDITOR,
+  IMPORT_EXPORT,
   SHORTCUTS,
 } from "@/utils/constants";
 import type { FlowNode } from "@/types";
@@ -31,6 +33,7 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
   const selectNode = useUiStore((s) => s.selectNode);
   const { isRunning, isStepMode, runFlow, stepNext, stopRun, toggleStepMode } =
     useFlowExecution(flowId);
+  const { exportFlow } = useFlowImportExport();
   const [envDialogOpen, setEnvDialogOpen] = useState(false);
 
   const handleAddNode = useCallback(() => {
@@ -97,6 +100,21 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>{ENV_EDITOR.DIALOG_TITLE}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => flow && exportFlow(flow)}
+              disabled={isRunning || !flow}
+            >
+              <Download />
+              {IMPORT_EXPORT.EXPORT_BUTTON}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{IMPORT_EXPORT.EXPORT_TOOLTIP}</TooltipContent>
         </Tooltip>
 
         <div className="h-5 w-px bg-border" />

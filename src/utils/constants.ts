@@ -109,6 +109,18 @@ export const PERSISTENCE = {
   SAVED_MESSAGE: "Flows saved",
 } as const;
 
+export const IMPORT_EXPORT = {
+  EXPORT_BUTTON: "Export",
+  IMPORT_BUTTON: "Import Flow",
+  EXPORT_SUCCESS: "Flow exported successfully",
+  IMPORT_SUCCESS: "Flow imported successfully",
+  IMPORT_ERROR_INVALID_JSON: "Invalid JSON file",
+  IMPORT_ERROR_INVALID_FORMAT: "File is not a valid flow format",
+  IMPORT_ERROR_READ_FAILED: "Failed to read file",
+  EXPORT_TOOLTIP: "Export as JSON",
+  IMPORT_TOOLTIP: "Import flow from JSON file",
+} as const;
+
 export const SHORTCUTS = {
   RUN: "Ctrl+Enter",
   STOP: "Ctrl+.",

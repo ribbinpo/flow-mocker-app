@@ -6,6 +6,7 @@ interface FlowState {
   activeFlowId: string | null;
 
   createFlow: (name: string) => Flow;
+  addFlow: (flow: Flow) => void;
   deleteFlow: (flowId: string) => void;
   renameFlow: (flowId: string, name: string) => void;
   setActiveFlow: (flowId: string | null) => void;
@@ -48,6 +49,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set((state) => ({ flows: [...state.flows, flow] }));
     return flow;
   },
+
+  addFlow: (flow) =>
+    set((state) => ({ flows: [...state.flows, flow] })),
 
   deleteFlow: (flowId) =>
     set((state) => ({

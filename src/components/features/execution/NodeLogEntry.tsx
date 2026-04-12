@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, MinusCircle 
 import { cn } from "@/lib/utils";
 import type { NodeLog, ExecutionStatus } from "@/types";
 import { EXECUTION } from "@/utils/constants";
+import { getMethodStyle } from "@/utils/methodColors";
 
 const STATUS_ICON: Record<ExecutionStatus, React.ReactNode> = {
   idle: null,
@@ -42,7 +43,7 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
         )}
         {STATUS_ICON[log.status]}
         <span className="truncate font-medium">{nodeLabel}</span>
-        <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-bold">
+        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(log.request.method))}>
           {log.request.method}
         </span>
         <span className="flex-1 truncate text-xs text-muted-foreground">

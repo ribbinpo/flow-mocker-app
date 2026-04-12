@@ -1,12 +1,17 @@
 import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ReactFlow, ReactFlowProvider, Background, Controls } from "@xyflow/react";
+import { ScrollText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FlowToolbar } from "@/components/features/flow-builder/FlowToolbar";
 import { NodeConfigPanel } from "@/components/features/node-config/NodeConfigPanel";
 import { ExecutionLogPanel } from "@/components/features/execution/ExecutionLogPanel";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
+import { useExecutionStore } from "@/store/executionStore";
 import { useFlowCanvas } from "@/hooks/useFlowCanvas";
+import { EXECUTION } from "@/utils/constants";
 
 function FlowBuilderContent({ flowId }: { flowId: string }) {
   const {
@@ -22,6 +27,7 @@ function FlowBuilderContent({ flowId }: { flowId: string }) {
 
   const logPanelOpen = useUiStore((s) => s.logPanelOpen);
   const setLogPanelOpen = useUiStore((s) => s.setLogPanelOpen);
+  const hasLogs = useExecutionStore((s) => (s.currentRun?.logs.length ?? 0) > 0);
 
   const handleCloseLogPanel = () => setLogPanelOpen(false);
 
@@ -29,7 +35,7 @@ function FlowBuilderContent({ flowId }: { flowId: string }) {
     <div className="flex h-screen flex-col">
       <FlowToolbar flowId={flowId} />
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1">
+        <div className="relative flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -44,6 +50,22 @@ function FlowBuilderContent({ flowId }: { flowId: string }) {
             <Background />
             <Controls />
           </ReactFlow>
+          {!logPanelOpen && hasLogs && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="absolute bottom-4 right-4 z-10 shadow-md"
+                  onClick={() => setLogPanelOpen(true)}
+                >
+                  <ScrollText />
+                  {EXECUTION.LOG_PANEL_TITLE}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Open execution log</TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <NodeConfigPanel />
         <ExecutionLogPanel
