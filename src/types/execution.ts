@@ -18,6 +18,8 @@ export interface NodeLog {
     latencyMs: number;
   } | null;
   error: string | null;
+  retryAttempts: number;
+  validationErrors: string[];
   startedAt: string;
   finishedAt: string | null;
 }

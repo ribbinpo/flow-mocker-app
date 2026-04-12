@@ -5,6 +5,7 @@ import { KeyValueEditor } from "./KeyValueEditor";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { NODE_CONFIG, HTTP_METHODS } from "@/utils/constants";
+import type { RetryConfig } from "@/types";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, FlowNode } from "@/types";
 
@@ -135,6 +136,71 @@ export function NodeConfigPanel() {
               onChange={(e) => handleUpdate({ body: e.target.value })}
               placeholder={NODE_CONFIG.BODY_PLACEHOLDER}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={!!node.retryConfig}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    handleUpdate({
+                      retryConfig: { maxRetries: 2, delayMs: 1000 },
+                    });
+                  } else {
+                    handleUpdate({ retryConfig: undefined });
+                  }
+                }}
+                className="accent-primary"
+              />
+              {NODE_CONFIG.RETRY_SECTION}
+            </label>
+            {node.retryConfig && (
+              <div className="flex gap-2">
+                <div className="flex flex-1 flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    {NODE_CONFIG.RETRY_MAX_LABEL}
+                  </span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={node.retryConfig.maxRetries}
+                    onChange={(e) => {
+                      const val = Math.min(5, Math.max(1, Number(e.target.value)));
+                      handleUpdate({
+                        retryConfig: {
+                          ...(node.retryConfig as RetryConfig),
+                          maxRetries: val,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    {NODE_CONFIG.RETRY_DELAY_LABEL}
+                  </span>
+                  <Input
+                    type="number"
+                    min={100}
+                    max={5000}
+                    step={100}
+                    value={node.retryConfig.delayMs}
+                    onChange={(e) => {
+                      const val = Math.min(5000, Math.max(100, Number(e.target.value)));
+                      handleUpdate({
+                        retryConfig: {
+                          ...(node.retryConfig as RetryConfig),
+                          delayMs: val,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <Button variant="destructive" size="sm" onClick={handleDelete}>

@@ -7,6 +7,11 @@ export interface DataMapping {
   targetKey: string;
 }
 
+export interface RetryConfig {
+  maxRetries: number;
+  delayMs: number;
+}
+
 export interface FlowNode {
   id: string;
   label: string;
@@ -16,6 +21,7 @@ export interface FlowNode {
   queryParams: Record<string, string>;
   body: string;
   dataMapping: DataMapping[];
+  retryConfig?: RetryConfig;
   position: { x: number; y: number };
 }
 

@@ -57,6 +57,18 @@ export const NODE_CONFIG = {
   ADD_PAIR_BUTTON: "Add",
   DELETE_NODE_BUTTON: "Delete Node",
   NO_URL: "No URL configured",
+  RETRY_SECTION: "Retry",
+  RETRY_ENABLE: "Enable Retry",
+  RETRY_MAX_LABEL: "Max Retries",
+  RETRY_DELAY_LABEL: "Delay (ms)",
+} as const;
+
+export const ENV_EDITOR = {
+  DIALOG_TITLE: "Environment Variables",
+  DIALOG_DESCRIPTION: "Variables are available as {{VARIABLE_NAME}} in URLs, headers, and body.",
+  BUTTON_LABEL: "Env",
+  EMPTY_TITLE: "No variables",
+  EMPTY_DESCRIPTION: "Add environment variables to use in your requests.",
 } as const;
 
 export const DEFAULT_NODE = {
@@ -86,4 +98,6 @@ export const EXECUTION = {
   REQUEST_SECTION: "Request",
   RESPONSE_SECTION: "Response",
   ERROR_SECTION: "Error",
+  VALIDATION_ERRORS_SECTION: "Validation Errors",
+  RETRY_ATTEMPTS_LABEL: "attempts",
 } as const;

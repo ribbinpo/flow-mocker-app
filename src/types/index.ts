@@ -1,6 +1,7 @@
 export type {
   HttpMethod,
   DataMapping,
+  RetryConfig,
   FlowNode,
   FlowEdge,
   Flow,

@@ -38,7 +38,7 @@ src/
 - Environment variable resolution ({{VARIABLE}} templates)
 - Stop on failure with remaining nodes marked "skipped"
 - AbortController for cancelling mid-execution
-- Retry mechanism (future phase)
+- Retry mechanism (configurable per-node, fixed delay, network errors + 5xx)
 
 ## Future Scope
 - gRPC support
@@ -68,7 +68,7 @@ src/
 - Phase 1: Foundation → ✅ Complete
 - Phase 2: Core Pages → ✅ Complete
 - Phase 3: Execution Engine → ✅ Complete
-- Phase 4: API Integration → ⏳
+- Phase 4: API Integration → ✅ Complete
 - Phase 5: Polish → ⏳
 
 ### Completed Components
@@ -89,6 +89,12 @@ src/
 - **Feature components:** ExecutionLogPanel, NodeLogEntry
 - **Constants:** EXECUTION (execution UI strings)
 - **Tests:** jsonPath, envResolver, dataMapper, executionEngine (41 tests)
+- **MSW:** handlers (auth, products endpoints), browser worker, dev-mode conditional start
+- **Services:** requestValidator (URL/method/body/headers validation), retryExecutor (retry with fixed delay)
+- **Types:** RetryConfig (maxRetries, delayMs), NodeLog enhanced with retryAttempts + validationErrors
+- **Feature components:** EnvVariablesDialog (env vars editor per flow)
+- **Constants:** ENV_EDITOR, EXECUTION (retry/validation strings), NODE_CONFIG (retry section)
+- **Tests:** requestValidator, retryExecutor (59 total tests)
 
 ### In Progress
 (none)
@@ -112,6 +118,11 @@ src/
 | 2025-04-12 | Body injection: top-level keys only | No nested path injection in v1; parse JSON, set key, re-stringify |
 | 2025-04-12 | Vitest for testing | Standard test runner for Vite projects; fast, native ESM support |
 | 2025-04-12 | Log panel open state in uiStore | Avoids useEffect setState lint issues; hook opens panel on run start |
+| 2025-04-12 | MSW in dev mode only | Worker starts conditionally via import.meta.env.DEV; no production impact |
+| 2025-04-12 | Request validation before sending | Catches bad URLs/JSON early; saves network roundtrip |
+| 2025-04-12 | Fixed delay retry (no exponential backoff) | Simpler for v1; configurable per-node; only retries network errors + 5xx |
+| 2025-04-12 | RetryConfig optional on FlowNode | Backward compatible; defaults to no retry |
+| 2025-04-12 | Env vars dialog in toolbar | Keeps toolbar clean; dialog pattern consistent with CreateFlowDialog |
 
 ## Do NOT
 - Do NOT use `any` type

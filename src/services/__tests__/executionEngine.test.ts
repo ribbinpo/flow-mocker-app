@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getExecutionOrder, executeFlow } from "../executionEngine";
 import type { Flow, FlowNode, FlowEdge, NodeLog } from "@/types";
 
-vi.mock("../apiClient", () => ({
-  sendRequest: vi.fn(),
+vi.mock("../retryExecutor", () => ({
+  sendWithRetry: vi.fn(),
 }));
 
-import { sendRequest } from "../apiClient";
+vi.mock("../requestValidator", () => ({
+  validateRequest: vi.fn(() => ({ valid: true, errors: [] })),
+}));
 
-const mockSendRequest = vi.mocked(sendRequest);
+import { sendWithRetry } from "../retryExecutor";
+import { validateRequest } from "../requestValidator";
+
+const mockSendWithRetry = vi.mocked(sendWithRetry);
+const mockValidateRequest = vi.mocked(validateRequest);
 
 function makeNode(id: string, overrides?: Partial<FlowNode>): FlowNode {
   return {
@@ -87,14 +93,13 @@ describe("getExecutionOrder", () => {
 describe("executeFlow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
   });
 
   it("executes a single node successfully", async () => {
-    mockSendRequest.mockResolvedValue({
-      status: 200,
-      headers: {},
-      body: { ok: true },
-      latencyMs: 50,
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 50 },
+      attempts: 1,
     });
 
     const flow = makeFlow([makeNode("a")], []);
@@ -110,15 +115,14 @@ describe("executeFlow", () => {
     expect(logs).toHaveLength(1);
     expect(logs[0].status).toBe("success");
     expect(logs[0].nodeId).toBe("a");
+    expect(logs[0].retryAttempts).toBe(1);
     expect(result.value).toBe("success");
   });
 
   it("executes multiple nodes in order", async () => {
-    mockSendRequest.mockResolvedValue({
-      status: 200,
-      headers: {},
-      body: { ok: true },
-      latencyMs: 50,
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 50 },
+      attempts: 1,
     });
 
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
@@ -139,12 +143,10 @@ describe("executeFlow", () => {
   });
 
   it("stops on error and marks remaining as skipped", async () => {
-    mockSendRequest
+    mockSendWithRetry
       .mockResolvedValueOnce({
-        status: 200,
-        headers: {},
-        body: { ok: true },
-        latencyMs: 50,
+        response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 50 },
+        attempts: 1,
       })
       .mockRejectedValueOnce(new Error("Connection refused"));
 
@@ -169,11 +171,9 @@ describe("executeFlow", () => {
   });
 
   it("resolves env variables in request", async () => {
-    mockSendRequest.mockResolvedValue({
-      status: 200,
-      headers: {},
-      body: {},
-      latencyMs: 10,
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
     });
 
     const node = makeNode("a", { url: "{{BASE_URL}}/users" });
@@ -185,24 +185,22 @@ describe("executeFlow", () => {
       result = await gen.next();
     }
 
-    expect(mockSendRequest).toHaveBeenCalledWith(
+    expect(mockSendWithRetry).toHaveBeenCalledWith(
       expect.objectContaining({ url: "https://api.test.com/users" }),
+      undefined,
+      undefined,
     );
   });
 
   it("applies data mappings between nodes", async () => {
-    mockSendRequest
+    mockSendWithRetry
       .mockResolvedValueOnce({
-        status: 200,
-        headers: {},
-        body: { token: "secret123" },
-        latencyMs: 10,
+        response: { status: 200, headers: {}, body: { token: "secret123" }, latencyMs: 10 },
+        attempts: 1,
       })
       .mockResolvedValueOnce({
-        status: 200,
-        headers: {},
-        body: { ok: true },
-        latencyMs: 10,
+        response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 10 },
+        attempts: 1,
       });
 
     const nodeA = makeNode("a");
@@ -224,18 +222,16 @@ describe("executeFlow", () => {
       result = await gen.next();
     }
 
-    expect(mockSendRequest).toHaveBeenCalledTimes(2);
-    expect(mockSendRequest.mock.calls[1][0].headers.Authorization).toBe(
+    expect(mockSendWithRetry).toHaveBeenCalledTimes(2);
+    expect(mockSendWithRetry.mock.calls[1][0].headers.Authorization).toBe(
       "secret123",
     );
   });
 
   it("calls onNodeStart and onNodeComplete callbacks", async () => {
-    mockSendRequest.mockResolvedValue({
-      status: 200,
-      headers: {},
-      body: {},
-      latencyMs: 10,
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
     });
 
     const callbacks = {
@@ -271,7 +267,7 @@ describe("executeFlow", () => {
 
     expect(logs.every((l) => l.status === "skipped")).toBe(true);
     expect(result.value).toBe("error");
-    expect(mockSendRequest).not.toHaveBeenCalled();
+    expect(mockSendWithRetry).not.toHaveBeenCalled();
   });
 
   it("returns error status for empty flow", async () => {
@@ -282,5 +278,31 @@ describe("executeFlow", () => {
 
     expect(result.done).toBe(true);
     expect(result.value).toBe("error");
+  });
+
+  it("stops on validation error", async () => {
+    mockValidateRequest.mockReturnValue({
+      valid: false,
+      errors: ["URL is required"],
+    });
+
+    const flow = makeFlow(
+      [makeNode("a", { url: "" }), makeNode("b")],
+      [makeEdge("a", "b")],
+    );
+    const logs: NodeLog[] = [];
+
+    const gen = executeFlow(flow, noopCallbacks);
+    let result = await gen.next();
+    while (!result.done) {
+      logs.push(result.value);
+      result = await gen.next();
+    }
+
+    expect(logs).toHaveLength(2);
+    expect(logs[0].status).toBe("error");
+    expect(logs[0].validationErrors).toContain("URL is required");
+    expect(logs[1].status).toBe("skipped");
+    expect(mockSendWithRetry).not.toHaveBeenCalled();
   });
 });

@@ -66,6 +66,11 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
             {EXECUTION.LATENCY_SUFFIX}
           </span>
         )}
+        {log.retryAttempts > 1 && (
+          <span className="shrink-0 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700">
+            {log.retryAttempts} {EXECUTION.RETRY_ATTEMPTS_LABEL}
+          </span>
+        )}
         <span className="shrink-0 text-xs text-muted-foreground">
           {STATUS_LABEL[log.status]}
         </span>
@@ -73,6 +78,19 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
 
       {expanded && (
         <div className="space-y-2 border-t px-3 py-2">
+          {log.validationErrors.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-amber-600">
+                {EXECUTION.VALIDATION_ERRORS_SECTION}
+              </p>
+              <ul className="list-inside list-disc rounded bg-amber-50 p-2 text-xs text-amber-700">
+                {log.validationErrors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {log.error && (
             <div>
               <p className="mb-1 text-xs font-medium text-destructive">

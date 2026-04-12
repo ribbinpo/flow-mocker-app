@@ -8,7 +8,8 @@ import type {
 } from "@/types";
 import { resolveEnvInRequest } from "@/utils/envResolver";
 import { applyDataMappings } from "./dataMapper";
-import { sendRequest } from "./apiClient";
+import { sendWithRetry } from "./retryExecutor";
+import { validateRequest } from "./requestValidator";
 
 export interface EngineCallbacks {
   onNodeStart: (nodeId: string) => void;
@@ -89,6 +90,8 @@ function buildNodeLog(
   response: { status: number; headers: Record<string, string>; body: unknown; latencyMs: number } | null,
   error: string | null,
   startedAt: string,
+  retryAttempts: number,
+  validationErrors: string[],
 ): NodeLog {
   return {
     nodeId: node.id,
@@ -101,6 +104,8 @@ function buildNodeLog(
     },
     response,
     error,
+    retryAttempts,
+    validationErrors,
     startedAt,
     finishedAt: new Date().toISOString(),
   };
@@ -118,6 +123,8 @@ function buildSkippedLog(node: FlowNode): NodeLog {
     },
     response: null,
     error: null,
+    retryAttempts: 0,
+    validationErrors: [],
     startedAt: new Date().toISOString(),
     finishedAt: new Date().toISOString(),
   };
@@ -155,16 +162,45 @@ export async function* executeFlow(
     config = resolveEnvInRequest(config, flow.envVariables);
     config = applyDataMappings(config, node.dataMapping, context);
 
+    // Validate request before sending
+    const validation = validateRequest(config);
+    if (!validation.valid) {
+      const log = buildNodeLog(
+        node,
+        config,
+        "error",
+        null,
+        validation.errors.join("; "),
+        startedAt,
+        0,
+        validation.errors,
+      );
+      callbacks.onNodeComplete(log);
+      yield log;
+
+      for (let j = i + 1; j < order.length; j++) {
+        const skippedLog = buildSkippedLog(order[j]);
+        callbacks.onNodeComplete(skippedLog);
+        yield skippedLog;
+      }
+
+      return "error" as ExecutionStatus;
+    }
+
     try {
-      const response = await sendRequest(config);
+      const { response, attempts } = await sendWithRetry(
+        config,
+        node.retryConfig,
+        signal,
+      );
       context[node.id] = response.body;
 
-      const log = buildNodeLog(node, config, "success", response, null, startedAt);
+      const log = buildNodeLog(node, config, "success", response, null, startedAt, attempts, []);
       callbacks.onNodeComplete(log);
       yield log;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      const log = buildNodeLog(node, config, "error", null, errorMessage, startedAt);
+      const log = buildNodeLog(node, config, "error", null, errorMessage, startedAt, 0, []);
       callbacks.onNodeComplete(log);
       yield log;
 
