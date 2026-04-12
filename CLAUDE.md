@@ -62,25 +62,33 @@ src/
 ## Current Status
 
 ### Progress
-- Phase 1: Foundation → ⏳ Not Started
+- Phase 1: Foundation → ✅ Complete
 - Phase 2: Core Pages → ⏳
 - Phase 3: Business Logic → ⏳
 - Phase 4: API Integration → ⏳
 - Phase 5: Polish → ⏳
 
 ### Completed Components
-(none yet)
+- **ShadCN UI:** Button, Input, Card, Dialog, Sonner (Toast)
+- **Base components:** LoadingSkeleton, EmptyState, PanelSidebar, NodeContainer
+- **Stores:** flowStore, executionStore, uiStore
+- **Services:** apiClient (Axios + Zod validation)
+- **Types:** Flow, FlowNode, FlowEdge, ExecutionResult, NodeLog, RequestConfig, ResponseData
+- **Utils:** constants (HTTP_METHODS, DEFAULT_HEADERS, API_TIMEOUT_MS)
 
 ### In Progress
-(none yet)
+(none)
 
 ### Known Issues
-(none yet)
+(none)
 
 ## Decisions Log
 | Date | Decision | Reason |
 |------|----------|--------|
-| | | |
+| 2025-04-12 | TailwindCSS v4 with @tailwindcss/vite plugin | Native Vite integration, no PostCSS config needed |
+| 2025-04-12 | ESLint v9 flat config | Matches typescript-eslint v8 compatibility |
+| 2025-04-12 | Zod v4 (zod/v4 import) | Already installed as v4, use v4 API directly |
+| 2025-04-12 | ShadCN new-york style | Clean, compact design suitable for developer tools |
 
 ## Do NOT
 - Do NOT use `any` type

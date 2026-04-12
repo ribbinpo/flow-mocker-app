@@ -1,0 +1,50 @@
+import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
+import type { ExecutionStatus } from "@/types";
+
+const STATUS_STYLES: Record<ExecutionStatus, string> = {
+  idle: "border-border",
+  running: "border-blue-500 shadow-blue-500/25 shadow-md",
+  success: "border-green-500",
+  error: "border-destructive",
+  skipped: "border-muted opacity-60",
+};
+
+interface NodeContainerProps {
+  label: string;
+  method: string;
+  status?: ExecutionStatus;
+  selected?: boolean;
+  children?: ReactNode;
+  className?: string;
+}
+
+export function NodeContainer({
+  label,
+  method,
+  status = "idle",
+  selected = false,
+  children,
+  className,
+}: NodeContainerProps) {
+  return (
+    <div
+      className={cn(
+        "w-56 rounded-lg border-2 bg-card p-3 transition-all",
+        STATUS_STYLES[status],
+        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+        className,
+      )}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground">
+          {method}
+        </span>
+        <span className="truncate text-sm font-medium">{label}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export default NodeContainer;
