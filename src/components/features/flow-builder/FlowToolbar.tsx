@@ -1,11 +1,23 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Play, SkipForward, Square, Settings2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EnvVariablesDialog } from "./EnvVariablesDialog";
 import { useFlowStore } from "@/store/flowStore";
+import { useUiStore } from "@/store/uiStore";
+import { useExecutionStore } from "@/store/executionStore";
 import { useFlowExecution } from "@/hooks/useFlowExecution";
-import { FLOW_BUILDER, DEFAULT_NODE, DEFAULT_HEADERS, EXECUTION, ENV_EDITOR } from "@/utils/constants";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import {
+  FLOW_BUILDER,
+  DEFAULT_NODE,
+  DEFAULT_HEADERS,
+  EXECUTION,
+  ENV_EDITOR,
+  SHORTCUTS,
+} from "@/utils/constants";
 import type { FlowNode } from "@/types";
 
 interface FlowToolbarProps {
@@ -16,12 +28,13 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
   const navigate = useNavigate();
   const flow = useFlowStore((s) => s.flows.find((f) => f.id === flowId));
   const addNode = useFlowStore((s) => s.addNode);
+  const selectNode = useUiStore((s) => s.selectNode);
   const { isRunning, isStepMode, runFlow, stepNext, stopRun, toggleStepMode } =
     useFlowExecution(flowId);
   const [envDialogOpen, setEnvDialogOpen] = useState(false);
 
-  const handleAddNode = () => {
-    const existingCount = flow?.nodes.length ?? 0;
+  const handleAddNode = useCallback(() => {
+    const existingCount = useFlowStore.getState().flows.find((f) => f.id === flowId)?.nodes.length ?? 0;
     const node: FlowNode = {
       id: crypto.randomUUID(),
       label: DEFAULT_NODE.LABEL,
@@ -34,7 +47,30 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
       position: { x: 100 + existingCount * 300, y: 150 },
     };
     addNode(flowId, node);
-  };
+  }, [flowId, addNode]);
+
+  const handleRun = useCallback(async () => {
+    await runFlow();
+    const run = useExecutionStore.getState().currentRun;
+    if (run?.status === "success") {
+      toast.success(EXECUTION.EXECUTION_SUCCESS_TOAST);
+    } else if (run?.status === "error") {
+      toast.error(EXECUTION.EXECUTION_ERROR_TOAST);
+    }
+  }, [runFlow]);
+
+  const handleDeselect = useCallback(() => {
+    selectNode(null);
+  }, [selectNode]);
+
+  useKeyboardShortcuts({
+    onRun: handleRun,
+    onStop: stopRun,
+    onStepNext: stepNext,
+    onAddNode: handleAddNode,
+    onDeselect: handleDeselect,
+    isRunning,
+  });
 
   return (
     <>
@@ -48,15 +84,20 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
           {flow?.name ?? FLOW_BUILDER.UNTITLED_FLOW}
         </h1>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setEnvDialogOpen(true)}
-          disabled={isRunning}
-        >
-          <Settings2 />
-          {ENV_EDITOR.BUTTON_LABEL}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEnvDialogOpen(true)}
+              disabled={isRunning}
+            >
+              <Settings2 />
+              {ENV_EDITOR.BUTTON_LABEL}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{ENV_EDITOR.DIALOG_TITLE}</TooltipContent>
+        </Tooltip>
 
         <div className="h-5 w-px bg-border" />
 
@@ -76,30 +117,50 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
         <div className="h-5 w-px bg-border" />
 
         {isRunning && isStepMode && (
-          <Button size="sm" variant="outline" onClick={stepNext}>
-            <SkipForward />
-            {EXECUTION.STEP_NEXT_BUTTON}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={stepNext}>
+                <SkipForward />
+                {EXECUTION.STEP_NEXT_BUTTON}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{SHORTCUTS.STEP_NEXT}</TooltipContent>
+          </Tooltip>
         )}
 
         {isRunning ? (
-          <Button size="sm" variant="destructive" onClick={stopRun}>
-            <Square />
-            {EXECUTION.STOP_BUTTON}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="destructive" onClick={stopRun}>
+                <Square />
+                {EXECUTION.STOP_BUTTON}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{SHORTCUTS.STOP}</TooltipContent>
+          </Tooltip>
         ) : (
-          <Button size="sm" variant="default" onClick={runFlow}>
-            <Play />
-            {EXECUTION.RUN_BUTTON}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="default" onClick={handleRun}>
+                <Play />
+                {EXECUTION.RUN_BUTTON}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{SHORTCUTS.RUN}</TooltipContent>
+          </Tooltip>
         )}
 
         <div className="h-5 w-px bg-border" />
 
-        <Button size="sm" onClick={handleAddNode} disabled={isRunning}>
-          <Plus />
-          {FLOW_BUILDER.TOOLBAR_ADD_NODE}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" onClick={handleAddNode} disabled={isRunning}>
+              <Plus />
+              {FLOW_BUILDER.TOOLBAR_ADD_NODE}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{SHORTCUTS.ADD_NODE}</TooltipContent>
+        </Tooltip>
       </div>
 
       <EnvVariablesDialog

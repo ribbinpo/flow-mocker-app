@@ -69,7 +69,7 @@ src/
 - Phase 2: Core Pages → ✅ Complete
 - Phase 3: Execution Engine → ✅ Complete
 - Phase 4: API Integration → ✅ Complete
-- Phase 5: Polish → ⏳
+- Phase 5: Polish & Release → ✅ Complete
 
 ### Completed Components
 - **ShadCN UI:** Button, Input, Card, Dialog, Sonner (Toast)
@@ -95,6 +95,10 @@ src/
 - **Feature components:** EnvVariablesDialog (env vars editor per flow)
 - **Constants:** ENV_EDITOR, EXECUTION (retry/validation strings), NODE_CONFIG (retry section)
 - **Tests:** requestValidator, retryExecutor (59 total tests)
+- **Persistence:** flowStorage (Tauri FS save/load with browser fallback), useFlowPersistence (debounced auto-save)
+- **Keyboard shortcuts:** useKeyboardShortcuts (run, stop, step, add node, deselect)
+- **ShadCN UI:** Tooltip (keyboard shortcut hints)
+- **Polish:** CHANGELOG.md, window resize, transition smoothing, toast notifications, .gitkeep cleanup
 
 ### In Progress
 (none)
@@ -123,6 +127,9 @@ src/
 | 2025-04-12 | Fixed delay retry (no exponential backoff) | Simpler for v1; configurable per-node; only retries network errors + 5xx |
 | 2025-04-12 | RetryConfig optional on FlowNode | Backward compatible; defaults to no retry |
 | 2025-04-12 | Env vars dialog in toolbar | Keeps toolbar clean; dialog pattern consistent with CreateFlowDialog |
+| 2025-04-12 | Tauri FS plugin for persistence | Standard plugin, less Rust code; graceful browser fallback for dev mode |
+| 2025-04-12 | Debounced save (1s) via Zustand subscribe | Non-invasive; avoids excessive writes during rapid edits |
+| 2025-04-12 | Keyboard shortcuts via useEffect keydown | Simple, no external library; scoped to builder page |
 
 ## Do NOT
 - Do NOT use `any` type

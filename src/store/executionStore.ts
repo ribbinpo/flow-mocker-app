@@ -7,9 +7,7 @@ interface ExecutionState {
 
   startRun: (flowId: string) => void;
   addNodeLog: (log: NodeLog) => void;
-  updateNodeLog: (nodeId: string, updates: Partial<NodeLog>) => void;
   finishRun: (status: ExecutionStatus) => void;
-  resetRun: () => void;
   setStepMode: (enabled: boolean) => void;
   getNodeStatus: (nodeId: string) => ExecutionStatus;
 }
@@ -51,21 +49,6 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
         },
       };
     }),
-
-  updateNodeLog: (nodeId, updates) =>
-    set((state) => {
-      if (!state.currentRun) return state;
-      return {
-        currentRun: {
-          ...state.currentRun,
-          logs: state.currentRun.logs.map((log) =>
-            log.nodeId === nodeId ? { ...log, ...updates } : log,
-          ),
-        },
-      };
-    }),
-
-  resetRun: () => set({ currentRun: null }),
 
   setStepMode: (enabled) => set({ isStepMode: enabled }),
 

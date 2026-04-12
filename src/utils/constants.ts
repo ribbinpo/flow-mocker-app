@@ -100,4 +100,18 @@ export const EXECUTION = {
   ERROR_SECTION: "Error",
   VALIDATION_ERRORS_SECTION: "Validation Errors",
   RETRY_ATTEMPTS_LABEL: "attempts",
+  EXECUTION_SUCCESS_TOAST: "Flow executed successfully",
+  EXECUTION_ERROR_TOAST: "Flow execution failed",
+} as const;
+
+export const PERSISTENCE = {
+  SAVED_MESSAGE: "Flows saved",
+} as const;
+
+export const SHORTCUTS = {
+  RUN: "Ctrl+Enter",
+  STOP: "Ctrl+.",
+  STEP_NEXT: "Ctrl+Shift+Enter",
+  ADD_NODE: "Ctrl+N",
+  DESELECT: "Esc",
 } as const;

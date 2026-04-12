@@ -6,8 +6,6 @@ interface UiState {
   logPanelOpen: boolean;
 
   selectNode: (nodeId: string | null) => void;
-  toggleSidebar: () => void;
-  setSidebarOpen: (open: boolean) => void;
   setLogPanelOpen: (open: boolean) => void;
 }
 
@@ -21,11 +19,6 @@ export const useUiStore = create<UiState>((set) => ({
       selectedNodeId: nodeId,
       sidebarOpen: nodeId !== null,
     }),
-
-  toggleSidebar: () =>
-    set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   setLogPanelOpen: (open) => set({ logPanelOpen: open }),
 }));

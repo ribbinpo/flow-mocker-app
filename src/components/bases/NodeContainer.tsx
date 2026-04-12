@@ -30,7 +30,7 @@ export function NodeContainer({
   return (
     <div
       className={cn(
-        "w-56 rounded-lg border-2 bg-card p-3 transition-all",
+        "w-56 rounded-lg border-2 bg-card p-3 transition-all duration-200",
         STATUS_STYLES[status],
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
         className,
