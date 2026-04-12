@@ -34,6 +34,7 @@ export const FLOW_LIST = {
   DELETE_CONFIRM_BUTTON: "Delete",
   CARD_NODES_LABEL: "nodes",
   CARD_UPDATED_LABEL: "Updated",
+  SELECT_FLOW_DESCRIPTION: "Select a flow from the sidebar or create a new one.",
 } as const;
 
 export const FLOW_BUILDER = {

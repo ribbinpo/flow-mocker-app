@@ -46,7 +46,7 @@ export function FlowListPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="px-6 py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{FLOW_LIST.PAGE_TITLE}</h1>
