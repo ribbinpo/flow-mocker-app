@@ -9,11 +9,43 @@ const client = axios.create({
 
 const responseSchema = z.object({
   status: z.number(),
-  headers: z.record(z.string(), z.string()),
+  headers: z.any(),
   data: z.unknown(),
 });
 
-export async function sendRequest(config: RequestConfig): Promise<ResponseData> {
+function isTauriContext(): boolean {
+  return "__TAURI_INTERNALS__" in window;
+}
+
+async function sendViaTauri(config: RequestConfig): Promise<ResponseData> {
+  const { invoke } = await import("@tauri-apps/api/core");
+
+  const body = config.body ? config.body.replace(/\n/g, "").trim() : undefined;
+
+  const result = await invoke<{
+    status: number;
+    headers: Record<string, string>;
+    body: unknown;
+    latencyMs: number;
+  }>("proxy_request", {
+    request: {
+      method: config.method,
+      url: config.url,
+      headers: config.headers,
+      queryParams: config.queryParams,
+      body: body || undefined,
+    },
+  });
+
+  return {
+    status: result.status,
+    headers: result.headers,
+    body: result.body,
+    latencyMs: result.latencyMs,
+  };
+}
+
+async function sendViaAxios(config: RequestConfig): Promise<ResponseData> {
   const startTime = performance.now();
 
   const response = await client.request({
@@ -21,7 +53,7 @@ export async function sendRequest(config: RequestConfig): Promise<ResponseData> 
     url: config.url,
     headers: config.headers,
     params: config.queryParams,
-    data: config.body ? JSON.parse(config.body) : undefined,
+    data: config.body ? JSON.parse(config.body.replace(/\n/g, "")) : undefined,
     validateStatus: () => true,
   });
 
@@ -39,4 +71,11 @@ export async function sendRequest(config: RequestConfig): Promise<ResponseData> 
     body: parsed.data,
     latencyMs,
   };
+}
+
+export async function sendRequest(config: RequestConfig): Promise<ResponseData> {
+  if (isTauriContext()) {
+    return sendViaTauri(config);
+  }
+  return sendViaAxios(config);
 }

@@ -26,7 +26,7 @@ function MethodButton({
         "rounded-md px-2 py-1 text-xs font-bold transition-colors",
         selected
           ? "bg-primary text-primary-foreground"
-          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
       )}
     >
       {method}
@@ -41,13 +41,13 @@ export function NodeConfigPanel() {
 
   const activeFlowId = useFlowStore((s) => s.activeFlowId);
   const flow = useFlowStore((s) =>
-    s.flows.find((f) => f.id === s.activeFlowId),
+    s.flows.find((f) => f.id === s.activeFlowId)
   );
   const updateNode = useFlowStore((s) => s.updateNode);
   const removeNode = useFlowStore((s) => s.removeNode);
 
   const node: FlowNode | undefined = flow?.nodes.find(
-    (n) => n.id === selectedNodeId,
+    (n) => n.id === selectedNodeId
   );
 
   const handleUpdate = (updates: Partial<FlowNode>) => {
@@ -168,7 +168,10 @@ export function NodeConfigPanel() {
                     max={5}
                     value={node.retryConfig.maxRetries}
                     onChange={(e) => {
-                      const val = Math.min(5, Math.max(1, Number(e.target.value)));
+                      const val = Math.min(
+                        5,
+                        Math.max(1, Number(e.target.value))
+                      );
                       handleUpdate({
                         retryConfig: {
                           ...(node.retryConfig as RetryConfig),
@@ -189,7 +192,10 @@ export function NodeConfigPanel() {
                     step={100}
                     value={node.retryConfig.delayMs}
                     onChange={(e) => {
-                      const val = Math.min(5000, Math.max(100, Number(e.target.value)));
+                      const val = Math.min(
+                        5000,
+                        Math.max(100, Number(e.target.value))
+                      );
                       handleUpdate({
                         retryConfig: {
                           ...(node.retryConfig as RetryConfig),
