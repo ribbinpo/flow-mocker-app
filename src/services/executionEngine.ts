@@ -17,61 +17,77 @@ export interface EngineCallbacks {
   onNodeComplete: (log: NodeLog) => void;
 }
 
-export function getExecutionOrder(
+export function getExecutionLevels(
   nodes: FlowNode[],
   edges: FlowEdge[],
-): FlowNode[] {
+): FlowNode[][] {
   if (nodes.length === 0) return [];
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const inDegree = new Map<string, number>();
-  const outEdges = new Map<string, string>();
+  const outEdges = new Map<string, string[]>();
 
   for (const node of nodes) {
     inDegree.set(node.id, 0);
+    outEdges.set(node.id, []);
   }
 
   for (const edge of edges) {
     inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
-    outEdges.set(edge.source, edge.target);
+    outEdges.get(edge.source)!.push(edge.target);
   }
 
-  const starts = nodes.filter((n) => inDegree.get(n.id) === 0);
+  const levels: FlowNode[][] = [];
+  let currentWave = nodes.filter((n) => inDegree.get(n.id) === 0);
 
-  if (starts.length === 0) {
+  if (currentWave.length === 0) {
     throw new Error("Cycle detected in flow — cannot execute");
   }
 
-  const order: FlowNode[] = [];
-  const visited = new Set<string>();
+  let processed = 0;
 
-  let current: string | undefined = starts[0].id;
-  while (current) {
-    if (visited.has(current)) {
-      throw new Error("Cycle detected in flow — cannot execute");
-    }
-    visited.add(current);
+  while (currentWave.length > 0) {
+    levels.push(currentWave);
+    processed += currentWave.length;
 
-    const node = nodeMap.get(current);
-    if (node) order.push(node);
+    const nextWave: FlowNode[] = [];
 
-    current = outEdges.get(current);
-  }
-
-  for (const start of starts.slice(1)) {
-    if (!visited.has(start.id)) {
-      let cursor: string | undefined = start.id;
-      while (cursor) {
-        if (visited.has(cursor)) break;
-        visited.add(cursor);
-        const node = nodeMap.get(cursor);
-        if (node) order.push(node);
-        cursor = outEdges.get(cursor);
+    for (const node of currentWave) {
+      for (const targetId of outEdges.get(node.id) ?? []) {
+        const newDegree = (inDegree.get(targetId) ?? 1) - 1;
+        inDegree.set(targetId, newDegree);
+        if (newDegree === 0) {
+          const targetNode = nodeMap.get(targetId);
+          if (targetNode) nextWave.push(targetNode);
+        }
       }
     }
+
+    currentWave = nextWave;
   }
 
-  return order;
+  if (processed !== nodes.length) {
+    throw new Error("Cycle detected in flow — cannot execute");
+  }
+
+  return levels;
+}
+
+export function getExecutionOrder(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+): FlowNode[] {
+  return getExecutionLevels(nodes, edges).flat();
+}
+
+function buildParentMap(edges: FlowEdge[]): Map<string, string[]> {
+  const parents = new Map<string, string[]>();
+  for (const edge of edges) {
+    const list = parents.get(edge.target) ?? [];
+    list.push(edge.source);
+    parents.set(edge.target, list);
+  }
+  return parents;
 }
 
 function buildRequestConfig(node: FlowNode): RequestConfig {
@@ -131,108 +147,144 @@ function buildSkippedLog(node: FlowNode): NodeLog {
   };
 }
 
+async function executeSingleNode(
+  node: FlowNode,
+  context: Record<string, unknown>,
+  cookieJar: CookieJar,
+  flow: Flow,
+  signal?: AbortSignal,
+): Promise<NodeLog> {
+  const startedAt = new Date().toISOString();
+
+  let config = buildRequestConfig(node);
+  config = resolveEnvInRequest(config, flow.envVariables);
+  config = applyDataMappings(config, node.dataMapping, context);
+
+  if (!cookieJar.isEmpty()) {
+    const cookieHeader = cookieJar.getCookieHeader();
+    if (cookieHeader) {
+      const existingCookie = config.headers["Cookie"] || config.headers["cookie"] || "";
+      config = {
+        ...config,
+        headers: {
+          ...config.headers,
+          Cookie: existingCookie ? `${existingCookie}; ${cookieHeader}` : cookieHeader,
+        },
+      };
+    }
+  }
+
+  const validation = validateRequest(config);
+  if (!validation.valid) {
+    return buildNodeLog(
+      node,
+      config,
+      "error",
+      null,
+      validation.errors.join("; "),
+      startedAt,
+      0,
+      validation.errors,
+    );
+  }
+
+  try {
+    const { response, attempts } = await sendWithRetry(
+      config,
+      node.retryConfig,
+      signal,
+    );
+    context[node.id] = response.body;
+    cookieJar.parseSetCookieHeaders(response.headers);
+
+    const nodeStatus: ExecutionStatus = response.status >= 400 ? "error" : "success";
+    const nodeError = response.status >= 400 ? `HTTP ${response.status}` : null;
+
+    return buildNodeLog(node, config, nodeStatus, response, nodeError, startedAt, attempts, []);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return buildNodeLog(node, config, "error", null, errorMessage, startedAt, 0, []);
+  }
+}
+
 export async function* executeFlow(
   flow: Flow,
   callbacks: EngineCallbacks,
   signal?: AbortSignal,
-): AsyncGenerator<NodeLog, ExecutionStatus, void> {
-  const order = getExecutionOrder(flow.nodes, flow.edges);
+): AsyncGenerator<NodeLog[], ExecutionStatus, void> {
+  const levels = getExecutionLevels(flow.nodes, flow.edges);
 
-  if (order.length === 0) {
+  if (levels.length === 0) {
     return "error" as ExecutionStatus;
   }
 
   const context: Record<string, unknown> = {};
   const cookieJar = new CookieJar();
+  const failedNodes = new Set<string>();
+  const parentMap = buildParentMap(flow.edges);
 
-  for (let i = 0; i < order.length; i++) {
-    const node = order[i];
+  for (let waveIdx = 0; waveIdx < levels.length; waveIdx++) {
+    const wave = levels[waveIdx];
 
     if (signal?.aborted) {
-      for (let j = i; j < order.length; j++) {
-        const skippedLog = buildSkippedLog(order[j]);
-        callbacks.onNodeComplete(skippedLog);
-        yield skippedLog;
+      for (let w = waveIdx; w < levels.length; w++) {
+        const skippedLogs = levels[w].map((node) => {
+          const log = buildSkippedLog(node);
+          callbacks.onNodeComplete(log);
+          return log;
+        });
+        yield skippedLogs;
       }
       return "error" as ExecutionStatus;
     }
 
-    callbacks.onNodeStart(node.id);
-    const startedAt = new Date().toISOString();
+    const toExecute: FlowNode[] = [];
+    const waveLogs: NodeLog[] = [];
 
-    let config = buildRequestConfig(node);
-    config = resolveEnvInRequest(config, flow.envVariables);
-    config = applyDataMappings(config, node.dataMapping, context);
-
-    // Inject accumulated cookies from previous steps
-    if (!cookieJar.isEmpty()) {
-      const cookieHeader = cookieJar.getCookieHeader();
-      if (cookieHeader) {
-        const existingCookie = config.headers["Cookie"] || config.headers["cookie"] || "";
-        config = {
-          ...config,
-          headers: {
-            ...config.headers,
-            Cookie: existingCookie ? `${existingCookie}; ${cookieHeader}` : cookieHeader,
-          },
-        };
+    for (const node of wave) {
+      const parents = parentMap.get(node.id) ?? [];
+      if (parents.some((p) => failedNodes.has(p))) {
+        failedNodes.add(node.id);
+        const log = buildSkippedLog(node);
+        callbacks.onNodeComplete(log);
+        waveLogs.push(log);
+      } else {
+        toExecute.push(node);
       }
     }
 
-    // Validate request before sending
-    const validation = validateRequest(config);
-    if (!validation.valid) {
-      const log = buildNodeLog(
-        node,
-        config,
-        "error",
-        null,
-        validation.errors.join("; "),
-        startedAt,
-        0,
-        validation.errors,
+    if (toExecute.length > 0) {
+      const waveSnapshot = cookieJar.clone();
+
+      for (const node of toExecute) {
+        callbacks.onNodeStart(node.id);
+      }
+
+      const results = await Promise.allSettled(
+        toExecute.map((node) => {
+          const nodeJar = waveSnapshot.clone();
+          return executeSingleNode(node, context, nodeJar, flow, signal).then((log) => ({
+            log,
+            jar: nodeJar,
+          }));
+        }),
       );
-      callbacks.onNodeComplete(log);
-      yield log;
 
-      for (let j = i + 1; j < order.length; j++) {
-        const skippedLog = buildSkippedLog(order[j]);
-        callbacks.onNodeComplete(skippedLog);
-        yield skippedLog;
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const { log, jar } = result.value;
+          cookieJar.merge(jar);
+          callbacks.onNodeComplete(log);
+          waveLogs.push(log);
+          if (log.status === "error") {
+            failedNodes.add(log.nodeId);
+          }
+        }
       }
-
-      return "error" as ExecutionStatus;
     }
 
-    try {
-      const { response, attempts } = await sendWithRetry(
-        config,
-        node.retryConfig,
-        signal,
-      );
-      context[node.id] = response.body;
-
-      // Collect cookies from response for subsequent steps
-      cookieJar.parseSetCookieHeaders(response.headers);
-
-      const log = buildNodeLog(node, config, "success", response, null, startedAt, attempts, []);
-      callbacks.onNodeComplete(log);
-      yield log;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const log = buildNodeLog(node, config, "error", null, errorMessage, startedAt, 0, []);
-      callbacks.onNodeComplete(log);
-      yield log;
-
-      for (let j = i + 1; j < order.length; j++) {
-        const skippedLog = buildSkippedLog(order[j]);
-        callbacks.onNodeComplete(skippedLog);
-        yield skippedLog;
-      }
-
-      return "error" as ExecutionStatus;
-    }
+    yield waveLogs;
   }
 
-  return "success" as ExecutionStatus;
+  return (failedNodes.size === 0 ? "success" : "error") as ExecutionStatus;
 }

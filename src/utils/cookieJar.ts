@@ -74,4 +74,18 @@ export class CookieJar {
   isEmpty(): boolean {
     return this.cookies.size === 0;
   }
+
+  clone(): CookieJar {
+    const jar = new CookieJar();
+    for (const [name, cookie] of this.cookies) {
+      jar.cookies.set(name, { ...cookie });
+    }
+    return jar;
+  }
+
+  merge(other: CookieJar): void {
+    for (const [name, cookie] of other.cookies) {
+      this.cookies.set(name, { ...cookie });
+    }
+  }
 }

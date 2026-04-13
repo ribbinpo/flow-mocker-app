@@ -15,7 +15,7 @@ interface UseFlowExecutionReturn {
 }
 
 export function useFlowExecution(flowId: string): UseFlowExecutionReturn {
-  const generatorRef = useRef<AsyncGenerator<NodeLog, ExecutionStatus, void> | null>(null);
+  const generatorRef = useRef<AsyncGenerator<NodeLog[], ExecutionStatus, void> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const isRunning = useExecutionStore((s) => s.currentRun?.status === "running");
