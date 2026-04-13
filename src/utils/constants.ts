@@ -16,7 +16,8 @@ export const API_TIMEOUT_MS = 30_000;
 
 export const APP_NAME = "Flow Mocker";
 
-export const STORAGE_FILE_NAME = "flows.json";
+export const STORAGE_DIR_NAME = "flows";
+export const LEGACY_STORAGE_FILE_NAME = "flows.json";
 
 export const FLOW_LIST = {
   PAGE_TITLE: "My Flows",
