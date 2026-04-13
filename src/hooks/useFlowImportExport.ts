@@ -17,8 +17,9 @@ export function useFlowImportExport() {
     const json = exportFlowToJson(flow);
     const slug = slugifyFlowName(flow.name) || "flow";
     const filePath = await downloadJsonFile(json, `${slug}.json`);
+    if (filePath === null) return;
     toast.success(IMPORT_EXPORT.EXPORT_SUCCESS, {
-      description: filePath ?? undefined,
+      description: filePath,
     });
   }, []);
 

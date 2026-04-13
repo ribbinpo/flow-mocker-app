@@ -62,15 +62,19 @@ function isTauriContext(): boolean {
   return "__TAURI_INTERNALS__" in window;
 }
 
-async function downloadViaTauri(content: string, filename: string): Promise<string> {
-  const { writeTextFile, BaseDirectory } = await import("@tauri-apps/plugin-fs");
-  const { downloadDir } = await import("@tauri-apps/api/path");
+async function downloadViaTauri(content: string, filename: string): Promise<string | null> {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const { writeTextFile } = await import("@tauri-apps/plugin-fs");
 
-  await writeTextFile(filename, content, { baseDir: BaseDirectory.Download });
+  const filePath = await save({
+    defaultPath: filename,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
 
-  const dir = await downloadDir();
-  const separator = dir.endsWith("/") ? "" : "/";
-  return `${dir}${separator}${filename}`;
+  if (!filePath) return null;
+
+  await writeTextFile(filePath, content);
+  return filePath;
 }
 
 function downloadViaBrowser(content: string, filename: string): void {
