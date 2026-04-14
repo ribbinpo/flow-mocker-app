@@ -325,6 +325,20 @@ async function executeSingleNode(
   }
 }
 
+/**
+ * Execute a single API node in isolation (no flow context).
+ * Resolves env variables but has no store variable context.
+ */
+export async function executeOneNode(
+  node: ApiNode,
+  flow: Flow,
+  signal?: AbortSignal,
+): Promise<NodeLog> {
+  const context: Record<string, unknown> = {};
+  const cookieJar = new CookieJar();
+  return executeSingleNode(node, context, cookieJar, flow, signal);
+}
+
 function executeNodeInWave(
   node: FlowNode,
   context: Record<string, unknown>,
