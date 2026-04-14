@@ -1,9 +1,9 @@
 import type { ApiNode, DataMapping, StoreNode } from "@/types";
 
-const STORE_VAR_PATTERN = /\{\{(\w+)\}\}/g;
+const STORE_VAR_PATTERN = /\[\[(\w+)\]\]/g;
 
 /**
- * Extract all {{variableName}} references from a string.
+ * Extract all [[variableName]] references from a string.
  */
 export function extractVariableReferences(text: string): string[] {
   const refs: string[] = [];
@@ -16,7 +16,7 @@ export function extractVariableReferences(text: string): string[] {
 
 /**
  * Scan all fields of an API node and auto-generate DataMapping entries
- * based on {{variableName}} templates found in url, headers, query params, and body.
+ * based on [[variableName]] templates found in url, headers, query params, and body.
  * Maps each reference to the Store node that contains that variable.
  */
 export function generateDataMappings(

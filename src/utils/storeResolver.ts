@@ -1,6 +1,6 @@
 import type { RequestConfig } from "@/types";
 
-const TEMPLATE_PATTERN = /\{\{(\w+)\}\}/g;
+const TEMPLATE_PATTERN = /\[\[(\w+)\]\]/g;
 
 /**
  * Build a flat lookup of variable name → resolved value
@@ -45,7 +45,7 @@ function resolveRecord(
 }
 
 /**
- * Resolve {{variableName}} templates in all request fields
+ * Resolve [[variableName]] templates in all request fields
  * using values from Store node contexts.
  */
 export function resolveStoreVariablesInRequest(

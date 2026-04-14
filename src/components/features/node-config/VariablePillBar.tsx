@@ -21,9 +21,9 @@ export function VariablePillBar({ variables, onInsert }: VariablePillBarProps) {
           <button
             key={`${v.storeLabel}.${v.variableName}`}
             type="button"
-            onClick={() => onInsert(`{{${v.variableName}}}`)}
+            onClick={() => onInsert(`[[${v.variableName}]]`)}
             className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-200 active:bg-violet-300"
-            title={`Click to copy {{${v.variableName}}} from ${v.storeLabel}`}
+            title={`Click to copy [[${v.variableName}]] from ${v.storeLabel}`}
           >
             {v.variableName}
           </button>

@@ -41,7 +41,7 @@ describe("resolveStoreVariablesInRequest", () => {
   it("resolves templates in URL", () => {
     const config: RequestConfig = {
       method: "GET",
-      url: "https://api.com/users/{{userId}}",
+      url: "https://api.com/users/[[userId]]",
       headers: {},
       queryParams: {},
       body: "",
@@ -55,7 +55,7 @@ describe("resolveStoreVariablesInRequest", () => {
     const config: RequestConfig = {
       method: "GET",
       url: "https://api.com",
-      headers: { Authorization: "Bearer {{token}}" },
+      headers: { Authorization: "Bearer [[token]]" },
       queryParams: {},
       body: "",
     };
@@ -69,7 +69,7 @@ describe("resolveStoreVariablesInRequest", () => {
       method: "GET",
       url: "https://api.com",
       headers: {},
-      queryParams: { user: "{{userId}}" },
+      queryParams: { user: "[[userId]]" },
       body: "",
     };
 
@@ -83,7 +83,7 @@ describe("resolveStoreVariablesInRequest", () => {
       url: "https://api.com",
       headers: {},
       queryParams: {},
-      body: '{"token": "{{token}}"}',
+      body: '{"token": "[[token]]"}',
     };
 
     const result = resolveStoreVariablesInRequest(config, context);
@@ -93,20 +93,20 @@ describe("resolveStoreVariablesInRequest", () => {
   it("leaves unmatched templates unchanged", () => {
     const config: RequestConfig = {
       method: "GET",
-      url: "https://api.com/{{unknown}}",
+      url: "https://api.com/[[unknown]]",
       headers: {},
       queryParams: {},
       body: "",
     };
 
     const result = resolveStoreVariablesInRequest(config, context);
-    expect(result.url).toBe("https://api.com/{{unknown}}");
+    expect(result.url).toBe("https://api.com/[[unknown]]");
   });
 
   it("resolves multiple templates in one field", () => {
     const config: RequestConfig = {
       method: "GET",
-      url: "https://api.com/users/{{userId}}/token/{{token}}",
+      url: "https://api.com/users/[[userId]]/token/[[token]]",
       headers: {},
       queryParams: {},
       body: "",

@@ -8,7 +8,7 @@ import { VariablePillBar } from "./VariablePillBar";
 import { toast } from "sonner";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { NODE_CONFIG, HTTP_METHODS, START_NODE } from "@/utils/constants";
+import { NODE_CONFIG, HTTP_METHODS } from "@/utils/constants";
 import type { RetryConfig, ApiNode, StoreVariable, FlowEdge } from "@/types";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, FlowNode } from "@/types";
@@ -90,10 +90,6 @@ export function NodeConfigPanel() {
 
   const handleDelete = () => {
     if (!activeFlowId || !selectedNodeId) return;
-    if (node && isStartNode(node)) {
-      toast.error(START_NODE.CANNOT_DELETE);
-      return;
-    }
     removeNode(activeFlowId, selectedNodeId);
     selectNode(null);
   };

@@ -4,11 +4,11 @@ import type { ApiNode, StoreNode } from "@/types";
 
 describe("extractVariableReferences", () => {
   it("extracts single variable", () => {
-    expect(extractVariableReferences("{{token}}")).toEqual(["token"]);
+    expect(extractVariableReferences("[[token]]")).toEqual(["token"]);
   });
 
   it("extracts multiple variables", () => {
-    expect(extractVariableReferences("{{userId}}/{{name}}")).toEqual(["userId", "name"]);
+    expect(extractVariableReferences("[[userId]]/[[name]]")).toEqual(["userId", "name"]);
   });
 
   it("returns empty for no variables", () => {
@@ -20,7 +20,7 @@ describe("extractVariableReferences", () => {
   });
 
   it("extracts from URL template", () => {
-    expect(extractVariableReferences("https://api.com/users/{{userId}}/posts")).toEqual(["userId"]);
+    expect(extractVariableReferences("https://api.com/users/[[userId]]/posts")).toEqual(["userId"]);
   });
 });
 
@@ -42,7 +42,7 @@ describe("generateDataMappings", () => {
       type: "api",
       label: "Get Profile",
       method: "GET",
-      url: "https://api.com/users/{{userId}}",
+      url: "https://api.com/users/[[userId]]",
       headers: {},
       queryParams: {},
       body: "",
@@ -67,7 +67,7 @@ describe("generateDataMappings", () => {
       label: "Get Profile",
       method: "GET",
       url: "https://api.com/profile",
-      headers: { Authorization: "Bearer {{token}}" },
+      headers: { Authorization: "Bearer [[token]]" },
       queryParams: {},
       body: "",
       dataMapping: [],
@@ -90,8 +90,8 @@ describe("generateDataMappings", () => {
       type: "api",
       label: "Update",
       method: "PUT",
-      url: "https://api.com/users/{{userId}}",
-      headers: { Authorization: "Bearer {{token}}" },
+      url: "https://api.com/users/[[userId]]",
+      headers: { Authorization: "Bearer [[token]]" },
       queryParams: {},
       body: "",
       dataMapping: [],
@@ -126,7 +126,7 @@ describe("generateDataMappings", () => {
       type: "api",
       label: "Test",
       method: "GET",
-      url: "https://api.com/{{unknown}}",
+      url: "https://api.com/[[unknown]]",
       headers: {},
       queryParams: {},
       body: "",

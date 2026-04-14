@@ -13,7 +13,6 @@ import { useUiStore } from "@/store/uiStore";
 import type { FlowReactNode } from "@/types/reactFlow";
 import { toReactFlowNode, toReactFlowEdge, isStartNode } from "@/types";
 import type { FlowEdge } from "@/types";
-import { START_NODE } from "@/utils/constants";
 import ApiNode from "@/components/features/flow-builder/ApiNode";
 import StartNode from "@/components/features/flow-builder/StartNode";
 import StoreNode from "@/components/features/flow-builder/StoreNode";
@@ -51,18 +50,21 @@ export function useFlowCanvas(flowId: string) {
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowReactNode>[]) => {
-      setNodes((prev) => applyNodeChanges(changes, prev));
+      // Filter out Start node removal before applying changes
+      const startNodeIds = new Set(
+        flow?.nodes.filter(isStartNode).map((n) => n.id) ?? [],
+      );
+      const filtered = changes.filter(
+        (c) => !(c.type === "remove" && startNodeIds.has(c.id)),
+      );
 
-      for (const change of changes) {
+      setNodes((prev) => applyNodeChanges(filtered, prev));
+
+      for (const change of filtered) {
         if (change.type === "position" && change.position && !change.dragging) {
           updateNode(flowId, change.id, { position: change.position });
         }
         if (change.type === "remove") {
-          const targetNode = flow?.nodes.find((n) => n.id === change.id);
-          if (targetNode && isStartNode(targetNode)) {
-            toast.error(START_NODE.CANNOT_DELETE);
-            return;
-          }
           removeNode(flowId, change.id);
           selectNode(null);
           const removed = validateReferences(flowId);
