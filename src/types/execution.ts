@@ -1,16 +1,17 @@
-import type { HttpMethod } from "./flow";
+import type { HttpMethod, NodeType } from "./flow";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error" | "skipped";
 
 export interface NodeLog {
   nodeId: string;
+  nodeType: NodeType;
   status: ExecutionStatus;
   request: {
     method: HttpMethod;
     url: string;
     headers: Record<string, string>;
     body: string;
-  };
+  } | null;
   response: {
     status: number;
     headers: Record<string, string>;

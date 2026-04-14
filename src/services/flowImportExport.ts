@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import type { Flow } from "@/types";
+import type { Flow, FlowNode } from "@/types";
 
 type ImportResult =
   | { success: true; flow: Flow }
@@ -17,8 +17,16 @@ const retryConfigSchema = z.object({
   delayMs: z.number(),
 });
 
-const flowNodeSchema = z.object({
+const storeVariableSchema = z.object({
   id: z.string(),
+  name: z.string(),
+  sourceNodeId: z.string(),
+  sourcePath: z.string(),
+});
+
+const apiNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("api").optional().transform((v) => v ?? "api" as const),
   label: z.string(),
   method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH"]),
   url: z.string(),
@@ -30,10 +38,31 @@ const flowNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() }),
 });
 
+const startNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("start"),
+  label: z.string(),
+  position: z.object({ x: z.number(), y: z.number() }),
+});
+
+const storeNodeSchema = z.object({
+  id: z.string(),
+  type: z.literal("store"),
+  label: z.string(),
+  variables: z.array(storeVariableSchema),
+  position: z.object({ x: z.number(), y: z.number() }),
+});
+
+const flowNodeSchema = z.union([startNodeSchema, storeNodeSchema, apiNodeSchema]);
+
 const flowEdgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
+  edgeType: z.enum(["sequence", "variable"]).optional(),
+  sourceVariable: z.string().optional(),
+  targetField: z.enum(["header", "query", "body", "url"]).optional(),
+  targetKey: z.string().optional(),
 });
 
 const flowImportSchema = z.object({
@@ -113,6 +142,14 @@ export function parseAndValidateFlowJson(jsonString: string): ImportResult {
   return { success: true, flow: result.data as Flow };
 }
 
+function isApiNodeForRegen(node: FlowNode): boolean {
+  return node.type === "api";
+}
+
+function isStoreNodeForRegen(node: FlowNode): boolean {
+  return node.type === "store";
+}
+
 export function regenerateFlowIds(flow: Flow): Flow {
   const idMap = new Map<string, string>();
 
@@ -135,14 +172,29 @@ export function regenerateFlowIds(flow: Flow): Flow {
     id: newFlowId,
     createdAt: now,
     updatedAt: now,
-    nodes: flow.nodes.map((node) => ({
-      ...node,
-      id: remap(node.id),
-      dataMapping: node.dataMapping.map((dm) => ({
-        ...dm,
-        sourceNodeId: remap(dm.sourceNodeId),
-      })),
-    })),
+    nodes: flow.nodes.map((node) => {
+      if (isApiNodeForRegen(node) && node.type === "api") {
+        return {
+          ...node,
+          id: remap(node.id),
+          dataMapping: node.dataMapping.map((dm) => ({
+            ...dm,
+            sourceNodeId: remap(dm.sourceNodeId),
+          })),
+        };
+      }
+      if (isStoreNodeForRegen(node) && node.type === "store") {
+        return {
+          ...node,
+          id: remap(node.id),
+          variables: node.variables.map((v) => ({
+            ...v,
+            sourceNodeId: remap(v.sourceNodeId),
+          })),
+        };
+      }
+      return { ...node, id: remap(node.id) };
+    }),
     edges: flow.edges.map((edge) => ({
       ...edge,
       id: remap(edge.id),

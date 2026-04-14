@@ -9,6 +9,7 @@ export const SAMPLE_FLOWS: Flow[] = [
     nodes: [
       {
         id: "sample-node-1-1",
+        type: "api",
         label: "Login",
         method: "POST",
         url: "https://api.example.com/auth/login",
@@ -20,6 +21,7 @@ export const SAMPLE_FLOWS: Flow[] = [
       },
       {
         id: "sample-node-1-2",
+        type: "api",
         label: "Get Profile",
         method: "GET",
         url: "https://api.example.com/user/profile",
@@ -38,6 +40,7 @@ export const SAMPLE_FLOWS: Flow[] = [
       },
       {
         id: "sample-node-1-3",
+        type: "api",
         label: "Refresh Token",
         method: "PUT",
         url: "https://api.example.com/auth/refresh",
@@ -72,6 +75,7 @@ export const SAMPLE_FLOWS: Flow[] = [
     nodes: [
       {
         id: "sample-node-2-1",
+        type: "api",
         label: "List Products",
         method: "GET",
         url: "https://api.example.com/products",
@@ -83,6 +87,7 @@ export const SAMPLE_FLOWS: Flow[] = [
       },
       {
         id: "sample-node-2-2",
+        type: "api",
         label: "Create Product",
         method: "POST",
         url: "https://api.example.com/products",
@@ -94,6 +99,7 @@ export const SAMPLE_FLOWS: Flow[] = [
       },
       {
         id: "sample-node-2-3",
+        type: "api",
         label: "Update Product",
         method: "PUT",
         url: "https://api.example.com/products/1",
@@ -112,6 +118,7 @@ export const SAMPLE_FLOWS: Flow[] = [
       },
       {
         id: "sample-node-2-4",
+        type: "api",
         label: "Delete Product",
         method: "DELETE",
         url: "https://api.example.com/products/1",

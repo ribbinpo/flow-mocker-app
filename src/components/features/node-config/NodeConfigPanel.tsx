@@ -2,13 +2,17 @@ import { PanelSidebar } from "@/components/bases/PanelSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { KeyValueEditor } from "./KeyValueEditor";
+import { StoreVariableEditor } from "./StoreVariableEditor";
+import { toast } from "sonner";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { NODE_CONFIG, HTTP_METHODS } from "@/utils/constants";
-import type { RetryConfig } from "@/types";
+import { NODE_CONFIG, HTTP_METHODS, START_NODE } from "@/utils/constants";
+import type { RetryConfig, ApiNode, StoreVariable } from "@/types";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, FlowNode } from "@/types";
+import { isApiNode, isStartNode, isStoreNode } from "@/types";
 import { getMethodStyle } from "@/utils/methodColors";
+import { getUpstreamNodeIds } from "@/services/variableResolver";
 
 function MethodButton({
   method,
@@ -51,13 +55,17 @@ export function NodeConfigPanel() {
     (n) => n.id === selectedNodeId
   );
 
-  const handleUpdate = (updates: Partial<FlowNode>) => {
+  const handleUpdate = (updates: Partial<ApiNode>) => {
     if (!activeFlowId || !selectedNodeId) return;
-    updateNode(activeFlowId, selectedNodeId, updates);
+    updateNode(activeFlowId, selectedNodeId, updates as Partial<FlowNode>);
   };
 
   const handleDelete = () => {
     if (!activeFlowId || !selectedNodeId) return;
+    if (node && isStartNode(node)) {
+      toast.error(START_NODE.CANNOT_DELETE);
+      return;
+    }
     removeNode(activeFlowId, selectedNodeId);
     selectNode(null);
   };
@@ -68,7 +76,43 @@ export function NodeConfigPanel() {
       open={sidebarOpen && !!node}
       onClose={() => selectNode(null)}
     >
-      {node && (
+      {node && isStartNode(node) && (
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-muted-foreground">
+            The Start node is the entry point of the flow. All execution begins here.
+          </p>
+        </div>
+      )}
+
+      {node && isStoreNode(node) && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              {NODE_CONFIG.LABEL_FIELD}
+            </label>
+            <Input
+              value={node.label}
+              onChange={(e) => handleUpdate({ label: e.target.value })}
+            />
+          </div>
+
+          <StoreVariableEditor
+            variables={node.variables}
+            apiNodes={flow?.nodes.filter(isApiNode) ?? []}
+            upstreamNodeIds={flow ? getUpstreamNodeIds(node.id, flow.nodes, flow.edges) : new Set()}
+            onChange={(variables: StoreVariable[]) => {
+              if (!activeFlowId || !selectedNodeId) return;
+              updateNode(activeFlowId, selectedNodeId, { variables } as Partial<FlowNode>);
+            }}
+          />
+
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {NODE_CONFIG.DELETE_NODE_BUTTON}
+          </Button>
+        </div>
+      )}
+
+      {node && isApiNode(node) && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">

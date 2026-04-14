@@ -1,11 +1,19 @@
 export type {
   HttpMethod,
+  NodeType,
+  EdgeType,
   DataMapping,
   RetryConfig,
+  ApiNode,
+  StartNode,
+  StoreVariable,
+  StoreNode,
   FlowNode,
   FlowEdge,
   Flow,
 } from "./flow";
+
+export { isApiNode, isStartNode, isStoreNode, isSequenceEdge, isVariableEdge } from "./flow";
 
 export type {
   ExecutionStatus,

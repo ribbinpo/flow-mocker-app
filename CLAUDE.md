@@ -70,6 +70,7 @@ src/
 - Phase 3: Execution Engine → ✅ Complete
 - Phase 4: API Integration → ✅ Complete
 - Phase 5: Polish & Release → ✅ Complete
+- Phase 6: Operation Node → ✅ Complete
 
 ### Core Features (Completed)
 - Flow builder (React Flow)
@@ -81,12 +82,16 @@ src/
 - Flow persistence (Tauri FS + fallback)
 - Keyboard shortcuts
 - Unit tests (engine, mapper, validator, retry)
+- Polymorphic node types (Start, API, Store)
+- Variable drag-and-drop (Store → API field handles)
+- Sequence-aware variable availability + auto-cleanup
+- Dual edge system (sequence vs variable)
 
 ### Key Modules
 - **Stores:** flowStore, executionStore, uiStore  
-- **Engine:** executionEngine, dataMapper, retryExecutor  
+- **Engine:** executionEngine, dataMapper, retryExecutor, variableResolver  
 - **API:** apiClient, requestValidator  
-- **Utils:** jsonPath, envResolver  
+- **Utils:** jsonPath, envResolver, cookieJar  
 - **Hooks:** useFlowCanvas, useFlowExecution, useFlowPersistence  
 
 ### In Progress

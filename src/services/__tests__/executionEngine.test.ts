@@ -19,6 +19,7 @@ const mockValidateRequest = vi.mocked(validateRequest);
 function makeNode(id: string, overrides?: Partial<FlowNode>): FlowNode {
   return {
     id,
+    type: "api",
     label: `Node ${id}`,
     method: "GET",
     url: "https://api.example.com",
@@ -28,7 +29,7 @@ function makeNode(id: string, overrides?: Partial<FlowNode>): FlowNode {
     dataMapping: [],
     position: { x: 0, y: 0 },
     ...overrides,
-  };
+  } as FlowNode;
 }
 
 function makeEdge(source: string, target: string): FlowEdge {
@@ -693,5 +694,374 @@ describe("executeFlow parallel", () => {
     expect(logs.find((l) => l.nodeId === "d")?.status).toBe("skipped");
     expect(logs.find((l) => l.nodeId === "e")?.status).toBe("success");
     expect(status).toBe("error");
+  });
+});
+
+function makeStartNode(id: string): FlowNode {
+  return {
+    id,
+    type: "start",
+    label: "Start",
+    position: { x: 0, y: 0 },
+  };
+}
+
+describe("executeFlow with Start node", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
+  });
+
+  it("passes through Start node with success status and no request", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const nodes = [makeStartNode("start"), makeNode("a")];
+    const edges = [makeEdge("start", "a")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(2);
+    expect(logs[0].nodeId).toBe("start");
+    expect(logs[0].status).toBe("success");
+    expect(logs[0].nodeType).toBe("start");
+    expect(logs[0].request).toBeNull();
+    expect(logs[1].nodeId).toBe("a");
+    expect(logs[1].status).toBe("success");
+    expect(status).toBe("success");
+  });
+
+  it("does not call sendWithRetry for Start node", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const nodes = [makeStartNode("start"), makeNode("a")];
+    const edges = [makeEdge("start", "a")];
+    const flow = makeFlow(nodes, edges);
+
+    await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(mockSendWithRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips downstream nodes when Start node is in an abort scenario", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const nodes = [makeStartNode("start"), makeNode("a")];
+    const edges = [makeEdge("start", "a")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(
+      executeFlow(flow, noopCallbacks, controller.signal),
+    );
+
+    expect(logs.every((l) => l.status === "skipped")).toBe(true);
+    expect(status).toBe("error");
+    expect(mockSendWithRetry).not.toHaveBeenCalled();
+  });
+
+  it("executes Start -> API -> API chain correctly", async () => {
+    mockSendWithRetry
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { token: "xyz" }, latencyMs: 10 },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { data: "ok" }, latencyMs: 10 },
+        attempts: 1,
+      });
+
+    const nodeA = makeNode("a");
+    const nodeB = makeNode("b", {
+      dataMapping: [
+        { sourceNodeId: "a", sourcePath: "token", targetField: "header", targetKey: "Authorization" },
+      ],
+    });
+    const nodes = [makeStartNode("start"), nodeA, nodeB];
+    const edges = [makeEdge("start", "a"), makeEdge("a", "b")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(3);
+    expect(logs[0].nodeType).toBe("start");
+    expect(logs[1].nodeType).toBe("api");
+    expect(logs[2].nodeType).toBe("api");
+    expect(status).toBe("success");
+    expect(mockSendWithRetry.mock.calls[1][0].headers.Authorization).toBe("xyz");
+  });
+
+  it("includes Start node in execution levels", () => {
+    const nodes = [makeStartNode("start"), makeNode("a"), makeNode("b")];
+    const edges = [makeEdge("start", "a"), makeEdge("a", "b")];
+
+    const levels = getExecutionLevels(nodes, edges);
+    expect(levels.map((l) => l.map((n) => n.id))).toEqual([["start"], ["a"], ["b"]]);
+  });
+});
+
+function makeStoreNode(
+  id: string,
+  variables: { id: string; name: string; sourceNodeId: string; sourcePath: string }[],
+): FlowNode {
+  return {
+    id,
+    type: "store",
+    label: "Store",
+    variables,
+    position: { x: 0, y: 0 },
+  } as FlowNode;
+}
+
+describe("executeFlow with Store node", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
+  });
+
+  it("resolves Store variables from upstream API response", async () => {
+    mockSendWithRetry
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { data: { token: "abc", userId: 42 } }, latencyMs: 10 },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 10 },
+        attempts: 1,
+      });
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "authToken", sourceNodeId: "a", sourcePath: "data.token" },
+      { id: "v2", name: "uid", sourceNodeId: "a", sourcePath: "data.userId" },
+    ]);
+    const apiB = makeNode("b", {
+      dataMapping: [
+        { sourceNodeId: "store-1", sourcePath: "authToken", targetField: "header", targetKey: "Authorization" },
+      ],
+    });
+
+    const nodes = [apiA, store, apiB];
+    const edges = [makeEdge("a", "store-1"), makeEdge("store-1", "b")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(3);
+    expect(logs[1].nodeId).toBe("store-1");
+    expect(logs[1].nodeType).toBe("store");
+    expect(logs[1].status).toBe("success");
+    expect(logs[1].request).toBeNull();
+
+    // Store node exposes resolved variables in response body
+    expect(logs[1].response?.body).toEqual({ authToken: "abc", uid: 42 });
+
+    // Downstream API node received the mapped value
+    expect(status).toBe("success");
+    expect(mockSendWithRetry.mock.calls[1][0].headers.Authorization).toBe("abc");
+  });
+
+  it("handles Store node with no variables", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", []);
+
+    const nodes = [apiA, store];
+    const edges = [makeEdge("a", "store-1")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(2);
+    expect(logs[1].status).toBe("success");
+    expect(logs[1].response?.body).toEqual({});
+    expect(status).toBe("success");
+  });
+
+  it("skips Store node when upstream fails", async () => {
+    mockSendWithRetry.mockRejectedValue(new Error("Network error"));
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "token", sourceNodeId: "a", sourcePath: "data.token" },
+    ]);
+
+    const nodes = [apiA, store];
+    const edges = [makeEdge("a", "store-1")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(2);
+    expect(logs[0].status).toBe("error");
+    expect(logs[1].status).toBe("skipped");
+    expect(status).toBe("error");
+  });
+
+  it("handles Store variable referencing missing source node in context", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { val: 1 }, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "token", sourceNodeId: "nonexistent", sourcePath: "data.token" },
+    ]);
+
+    const nodes = [apiA, store];
+    const edges = [makeEdge("a", "store-1")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(2);
+    expect(logs[1].status).toBe("success");
+    // Missing source is simply omitted from results
+    expect(logs[1].response?.body).toEqual({});
+    expect(status).toBe("success");
+  });
+
+  it("executes full chain: Start -> API -> Store -> API", async () => {
+    mockSendWithRetry
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { session: "xyz" }, latencyMs: 10 },
+        attempts: 1,
+      })
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: { ok: true }, latencyMs: 10 },
+        attempts: 1,
+      });
+
+    const start = makeStartNode("start");
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "sessionId", sourceNodeId: "a", sourcePath: "session" },
+    ]);
+    const apiB = makeNode("b", {
+      dataMapping: [
+        { sourceNodeId: "store-1", sourcePath: "sessionId", targetField: "header", targetKey: "X-Session" },
+      ],
+    });
+
+    const nodes = [start, apiA, store, apiB];
+    const edges = [
+      makeEdge("start", "a"),
+      makeEdge("a", "store-1"),
+      makeEdge("store-1", "b"),
+    ];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs).toHaveLength(4);
+    expect(logs.map((l) => l.nodeType)).toEqual(["start", "api", "store", "api"]);
+    expect(status).toBe("success");
+    expect(mockSendWithRetry.mock.calls[1][0].headers["X-Session"]).toBe("xyz");
+  });
+
+  it("does not call sendWithRetry for Store node", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { data: 1 }, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "val", sourceNodeId: "a", sourcePath: "data" },
+    ]);
+
+    const nodes = [apiA, store];
+    const edges = [makeEdge("a", "store-1")];
+    const flow = makeFlow(nodes, edges);
+
+    await collectLogs(executeFlow(flow, noopCallbacks));
+
+    // Only 1 call for API node "a", not for store
+    expect(mockSendWithRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+function makeVariableEdge(
+  source: string,
+  target: string,
+  sourceVariable: string,
+  targetField: "header" | "query" | "body" | "url",
+  targetKey: string,
+): FlowEdge {
+  return {
+    id: `var-${source}-${target}-${sourceVariable}`,
+    source,
+    target,
+    edgeType: "variable",
+    sourceVariable,
+    targetField,
+    targetKey,
+  };
+}
+
+describe("variable edges", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
+  });
+
+  it("variable edges do not affect execution order", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    // Sequence: a -> b. Variable edge: a -> c (should NOT create dependency)
+    const edges: FlowEdge[] = [
+      makeEdge("a", "b"),
+      makeVariableEdge("a", "c", "token", "header", "Auth"),
+    ];
+
+    const levels = getExecutionLevels(nodes, edges);
+    // a and c should be in level 0 (c has no sequence deps), b in level 1
+    expect(levels[0].map((n) => n.id).sort()).toEqual(["a", "c"]);
+    expect(levels[1].map((n) => n.id)).toEqual(["b"]);
+  });
+
+  it("variable edges do not propagate failure", async () => {
+    mockSendWithRetry
+      .mockRejectedValueOnce(new Error("A failed"))
+      .mockResolvedValueOnce({
+        response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+        attempts: 1,
+      });
+
+    const nodes = [makeNode("a"), makeNode("b")];
+    // Only a variable edge from a to b — no sequence dependency
+    const edges: FlowEdge[] = [
+      makeVariableEdge("a", "b", "token", "header", "Auth"),
+    ];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    // Both execute in the same wave (no sequence dependency)
+    // b should NOT be skipped just because a failed via variable edge
+    const bLog = logs.find((l) => l.nodeId === "b");
+    expect(bLog?.status).not.toBe("skipped");
+  });
+
+  it("mixed sequence and variable edges: sequence determines order", () => {
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges: FlowEdge[] = [
+      makeEdge("a", "b"),
+      makeEdge("b", "c"),
+      makeVariableEdge("a", "c", "token", "header", "Auth"),
+    ];
+
+    const levels = getExecutionLevels(nodes, edges);
+    expect(levels.map((l) => l.map((n) => n.id))).toEqual([["a"], ["b"], ["c"]]);
   });
 });

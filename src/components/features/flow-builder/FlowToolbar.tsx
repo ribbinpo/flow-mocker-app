@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Plus, Play, SkipForward, Square, Settings2 } from "lucide-react";
+import { ArrowLeft, Download, Plus, Database, Play, SkipForward, Square, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -15,12 +15,13 @@ import {
   FLOW_BUILDER,
   DEFAULT_NODE,
   DEFAULT_HEADERS,
+  STORE_NODE,
   EXECUTION,
   ENV_EDITOR,
   IMPORT_EXPORT,
   SHORTCUTS,
 } from "@/utils/constants";
-import type { FlowNode } from "@/types";
+import type { ApiNode, StoreNode } from "@/types";
 
 interface FlowToolbarProps {
   flowId: string;
@@ -36,10 +37,16 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
   const { exportFlow } = useFlowImportExport();
   const [envDialogOpen, setEnvDialogOpen] = useState(false);
 
+  const getNextPosition = useCallback(() => {
+    const nodes = useFlowStore.getState().flows.find((f) => f.id === flowId)?.nodes ?? [];
+    const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x), 0);
+    return { x: maxX + 300, y: 150 };
+  }, [flowId]);
+
   const handleAddNode = useCallback(() => {
-    const existingCount = useFlowStore.getState().flows.find((f) => f.id === flowId)?.nodes.length ?? 0;
-    const node: FlowNode = {
+    const node: ApiNode = {
       id: crypto.randomUUID(),
+      type: "api",
       label: DEFAULT_NODE.LABEL,
       method: DEFAULT_NODE.METHOD,
       url: DEFAULT_NODE.URL,
@@ -47,10 +54,21 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
       queryParams: {},
       body: DEFAULT_NODE.BODY,
       dataMapping: [],
-      position: { x: 100 + existingCount * 300, y: 150 },
+      position: getNextPosition(),
     };
     addNode(flowId, node);
-  }, [flowId, addNode]);
+  }, [flowId, addNode, getNextPosition]);
+
+  const handleAddStoreNode = useCallback(() => {
+    const node: StoreNode = {
+      id: crypto.randomUUID(),
+      type: "store",
+      label: STORE_NODE.LABEL,
+      variables: [],
+      position: getNextPosition(),
+    };
+    addNode(flowId, node);
+  }, [flowId, addNode, getNextPosition]);
 
   const handleRun = useCallback(async () => {
     await runFlow();
@@ -174,10 +192,20 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
           <TooltipTrigger asChild>
             <Button size="sm" onClick={handleAddNode} disabled={isRunning}>
               <Plus />
-              {FLOW_BUILDER.TOOLBAR_ADD_NODE}
+              {FLOW_BUILDER.TOOLBAR_ADD_API_NODE}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{SHORTCUTS.ADD_NODE}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="outline" onClick={handleAddStoreNode} disabled={isRunning}>
+              <Database />
+              {FLOW_BUILDER.TOOLBAR_ADD_STORE_NODE}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add Store node</TooltipContent>
         </Tooltip>
       </div>
 

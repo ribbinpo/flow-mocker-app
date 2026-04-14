@@ -6,7 +6,7 @@ import {
   regenerateFlowIds,
   importFlowFromJson,
 } from "../flowImportExport";
-import type { Flow } from "@/types";
+import type { Flow, ApiNode } from "@/types";
 
 function makeTestFlow(): Flow {
   return {
@@ -16,6 +16,7 @@ function makeTestFlow(): Flow {
     nodes: [
       {
         id: "node-a",
+        type: "api",
         label: "Login",
         method: "POST",
         url: "https://api.example.com/login",
@@ -27,6 +28,7 @@ function makeTestFlow(): Flow {
       },
       {
         id: "node-b",
+        type: "api",
         label: "Get Profile",
         method: "GET",
         url: "https://api.example.com/profile",
@@ -142,7 +144,8 @@ describe("regenerateFlowIds", () => {
     const regenerated = regenerateFlowIds(original);
 
     const newNodeAId = regenerated.nodes[0].id;
-    expect(regenerated.nodes[1].dataMapping[0].sourceNodeId).toBe(newNodeAId);
+    const nodeB = regenerated.nodes[1] as ApiNode;
+    expect(nodeB.dataMapping[0].sourceNodeId).toBe(newNodeAId);
   });
 
   it("sets new timestamps", () => {
@@ -161,7 +164,7 @@ describe("regenerateFlowIds", () => {
     expect(regenerated.description).toBe(original.description);
     expect(regenerated.envVariables).toEqual(original.envVariables);
     expect(regenerated.nodes[0].label).toBe(original.nodes[0].label);
-    expect(regenerated.nodes[0].url).toBe(original.nodes[0].url);
+    expect((regenerated.nodes[0] as ApiNode).url).toBe((original.nodes[0] as ApiNode).url);
   });
 });
 
@@ -183,5 +186,98 @@ describe("importFlowFromJson", () => {
   it("returns error for invalid input", () => {
     const result = importFlowFromJson("not json");
     expect(result.success).toBe(false);
+  });
+});
+
+describe("import/export with Store and Start nodes", () => {
+  it("round-trips flow with Start and Store nodes", () => {
+    const flow: Flow = {
+      id: "flow-2",
+      name: "Mixed Flow",
+      description: "",
+      nodes: [
+        {
+          id: "start-1",
+          type: "start",
+          label: "Start",
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "api-1",
+          type: "api",
+          label: "Login",
+          method: "POST",
+          url: "https://api.example.com/login",
+          headers: {},
+          queryParams: {},
+          body: "",
+          dataMapping: [],
+          position: { x: 300, y: 0 },
+        },
+        {
+          id: "store-1",
+          type: "store",
+          label: "Store Token",
+          variables: [
+            { id: "v1", name: "token", sourceNodeId: "api-1", sourcePath: "data.token" },
+          ],
+          position: { x: 600, y: 0 },
+        },
+      ],
+      edges: [
+        { id: "e1", source: "start-1", target: "api-1" },
+        { id: "e2", source: "api-1", target: "store-1" },
+      ],
+      envVariables: {},
+      createdAt: "2025-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-01T00:00:00.000Z",
+    };
+
+    const json = exportFlowToJson(flow);
+    const result = importFlowFromJson(json);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.flow.nodes).toHaveLength(3);
+      expect(result.flow.nodes[0].type).toBe("start");
+      expect(result.flow.nodes[1].type).toBe("api");
+      expect(result.flow.nodes[2].type).toBe("store");
+
+      // Store variable sourceNodeId is remapped
+      const storeNode = result.flow.nodes[2] as import("@/types").StoreNode;
+      const apiNode = result.flow.nodes[1];
+      expect(storeNode.variables[0].sourceNodeId).toBe(apiNode.id);
+    }
+  });
+
+  it("imports legacy flow JSON without type field", () => {
+    const legacyJson = JSON.stringify({
+      id: "legacy-1",
+      name: "Legacy",
+      description: "",
+      nodes: [
+        {
+          id: "n1",
+          label: "Request",
+          method: "GET",
+          url: "https://example.com",
+          headers: {},
+          queryParams: {},
+          body: "",
+          dataMapping: [],
+          position: { x: 0, y: 0 },
+        },
+      ],
+      edges: [],
+      envVariables: {},
+      createdAt: "2025-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-01T00:00:00.000Z",
+    });
+
+    const result = importFlowFromJson(legacyJson);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.flow.nodes[0].type).toBe("api");
+    }
   });
 });

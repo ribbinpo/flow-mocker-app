@@ -1,5 +1,7 @@
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
+export type NodeType = "api" | "start" | "store";
+
 export interface DataMapping {
   sourceNodeId: string;
   sourcePath: string;
@@ -12,9 +14,15 @@ export interface RetryConfig {
   delayMs: number;
 }
 
-export interface FlowNode {
+interface BaseNode {
   id: string;
+  type: NodeType;
   label: string;
+  position: { x: number; y: number };
+}
+
+export interface ApiNode extends BaseNode {
+  type: "api";
   method: HttpMethod;
   url: string;
   headers: Record<string, string>;
@@ -22,13 +30,56 @@ export interface FlowNode {
   body: string;
   dataMapping: DataMapping[];
   retryConfig?: RetryConfig;
-  position: { x: number; y: number };
 }
+
+export interface StartNode extends BaseNode {
+  type: "start";
+}
+
+export interface StoreVariable {
+  id: string;
+  name: string;
+  sourceNodeId: string;
+  sourcePath: string;
+}
+
+export interface StoreNode extends BaseNode {
+  type: "store";
+  variables: StoreVariable[];
+}
+
+export type FlowNode = ApiNode | StartNode | StoreNode;
+
+export function isApiNode(node: FlowNode): node is ApiNode {
+  return node.type === "api";
+}
+
+export function isStartNode(node: FlowNode): node is StartNode {
+  return node.type === "start";
+}
+
+export function isStoreNode(node: FlowNode): node is StoreNode {
+  return node.type === "store";
+}
+
+export type EdgeType = "sequence" | "variable";
 
 export interface FlowEdge {
   id: string;
   source: string;
   target: string;
+  edgeType?: EdgeType;
+  sourceVariable?: string;
+  targetField?: "header" | "query" | "body" | "url";
+  targetKey?: string;
+}
+
+export function isSequenceEdge(edge: FlowEdge): boolean {
+  return !edge.edgeType || edge.edgeType === "sequence";
+}
+
+export function isVariableEdge(edge: FlowEdge): boolean {
+  return edge.edgeType === "variable";
 }
 
 export interface Flow {

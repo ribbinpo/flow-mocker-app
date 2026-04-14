@@ -39,7 +39,8 @@ export const FLOW_LIST = {
 } as const;
 
 export const FLOW_BUILDER = {
-  TOOLBAR_ADD_NODE: "Add Node",
+  TOOLBAR_ADD_API_NODE: "API",
+  TOOLBAR_ADD_STORE_NODE: "Store",
   BACK_BUTTON: "Back to Flows",
   UNTITLED_FLOW: "Untitled Flow",
 } as const;
@@ -71,6 +72,27 @@ export const ENV_EDITOR = {
   BUTTON_LABEL: "Env",
   EMPTY_TITLE: "No variables",
   EMPTY_DESCRIPTION: "Add environment variables to use in your requests.",
+} as const;
+
+export const START_NODE = {
+  LABEL: "Start",
+  CANNOT_DELETE: "Start node cannot be deleted",
+  ALREADY_EXISTS: "Flow already has a Start node",
+} as const;
+
+export const STORE_NODE = {
+  LABEL: "Store",
+  PANEL_DESCRIPTION: "Collect values from upstream API responses and expose them as named variables for downstream nodes.",
+  VARIABLES_SECTION: "Variables",
+  VARIABLE_NAME_LABEL: "Name",
+  VARIABLE_NAME_PLACEHOLDER: "variableName",
+  SOURCE_NODE_LABEL: "Source Node",
+  SOURCE_NODE_PLACEHOLDER: "Select source node...",
+  SOURCE_PATH_LABEL: "Path",
+  SOURCE_PATH_PLACEHOLDER: "data.token",
+  ADD_VARIABLE_BUTTON: "Add Variable",
+  NO_VARIABLES: "No variables configured",
+  NO_API_NODES: "No API nodes available",
 } as const;
 
 export const DEFAULT_NODE = {

@@ -1,5 +1,8 @@
 import { create } from "zustand";
-import type { Flow, FlowNode, FlowEdge } from "@/types";
+import type { Flow, FlowNode, FlowEdge, StartNode, DataMapping } from "@/types";
+import { isApiNode, isVariableEdge } from "@/types";
+import { cleanInvalidReferences } from "@/services/variableResolver";
+import { START_NODE } from "@/utils/constants";
 
 interface FlowState {
   flows: Flow[];
@@ -19,6 +22,11 @@ interface FlowState {
   addEdge: (flowId: string, edge: FlowEdge) => void;
   removeEdge: (flowId: string, edgeId: string) => void;
 
+  addDataMapping: (flowId: string, nodeId: string, mapping: DataMapping) => void;
+  removeDataMapping: (flowId: string, nodeId: string, sourceNodeId: string, sourcePath: string) => void;
+
+  validateReferences: (flowId: string) => number;
+
   updateEnvVariables: (flowId: string, envVariables: Record<string, string>) => void;
 }
 
@@ -36,11 +44,17 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   createFlow: (name: string) => {
     const now = new Date().toISOString();
+    const startNode: StartNode = {
+      id: generateId(),
+      type: "start",
+      label: START_NODE.LABEL,
+      position: { x: 100, y: 150 },
+    };
     const flow: Flow = {
       id: generateId(),
       name,
       description: "",
-      nodes: [],
+      nodes: [startNode],
       edges: [],
       envVariables: {},
       createdAt: now,
@@ -88,7 +102,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set((state) => ({
       flows: updateFlowInList(state.flows, flowId, (f) => ({
         ...f,
-        nodes: f.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)),
+        nodes: f.nodes.map((n) =>
+          n.id === nodeId ? ({ ...n, ...updates } as FlowNode) : n,
+        ),
         updatedAt: new Date().toISOString(),
       })),
     })),
@@ -114,12 +130,84 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   removeEdge: (flowId, edgeId) =>
     set((state) => ({
+      flows: updateFlowInList(state.flows, flowId, (f) => {
+        const edge = f.edges.find((e) => e.id === edgeId);
+        let nodes = f.nodes;
+
+        // If removing a variable edge, also remove the matching DataMapping
+        if (edge && isVariableEdge(edge) && edge.sourceVariable) {
+          nodes = f.nodes.map((n) => {
+            if (n.id === edge.target && isApiNode(n)) {
+              return {
+                ...n,
+                dataMapping: n.dataMapping.filter(
+                  (dm) => !(dm.sourceNodeId === edge.source && dm.sourcePath === edge.sourceVariable),
+                ),
+              };
+            }
+            return n;
+          });
+        }
+
+        return {
+          ...f,
+          nodes,
+          edges: f.edges.filter((e) => e.id !== edgeId),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+
+  addDataMapping: (flowId, nodeId, mapping) =>
+    set((state) => ({
       flows: updateFlowInList(state.flows, flowId, (f) => ({
         ...f,
-        edges: f.edges.filter((e) => e.id !== edgeId),
+        nodes: f.nodes.map((n) => {
+          if (n.id === nodeId && isApiNode(n)) {
+            return { ...n, dataMapping: [...n.dataMapping, mapping] };
+          }
+          return n;
+        }),
         updatedAt: new Date().toISOString(),
       })),
     })),
+
+  removeDataMapping: (flowId, nodeId, sourceNodeId, sourcePath) =>
+    set((state) => ({
+      flows: updateFlowInList(state.flows, flowId, (f) => ({
+        ...f,
+        nodes: f.nodes.map((n) => {
+          if (n.id === nodeId && isApiNode(n)) {
+            return {
+              ...n,
+              dataMapping: n.dataMapping.filter(
+                (dm) => !(dm.sourceNodeId === sourceNodeId && dm.sourcePath === sourcePath),
+              ),
+            };
+          }
+          return n;
+        }),
+        updatedAt: new Date().toISOString(),
+      })),
+    })),
+
+  validateReferences: (flowId) => {
+    const flow = get().flows.find((f) => f.id === flowId);
+    if (!flow) return 0;
+
+    const { nodes, edges, totalRemoved } = cleanInvalidReferences(flow.nodes, flow.edges);
+    if (totalRemoved > 0) {
+      set((state) => ({
+        flows: updateFlowInList(state.flows, flowId, (f) => ({
+          ...f,
+          nodes: nodes as FlowNode[],
+          edges,
+          updatedAt: new Date().toISOString(),
+        })),
+      }));
+    }
+    return totalRemoved;
+  },
 
   updateEnvVariables: (flowId, envVariables) =>
     set((state) => ({

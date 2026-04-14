@@ -1,5 +1,19 @@
-import type { Flow } from "@/types";
+import type { Flow, FlowNode } from "@/types";
 import { STORAGE_DIR_NAME, LEGACY_STORAGE_FILE_NAME } from "@/utils/constants";
+
+function migrateNodeType(node: Record<string, unknown>): FlowNode {
+  if (!node.type) {
+    return { ...node, type: "api" } as unknown as FlowNode;
+  }
+  return node as unknown as FlowNode;
+}
+
+function migrateFlowNodes(flow: Record<string, unknown>): Flow {
+  const nodes = Array.isArray(flow.nodes)
+    ? flow.nodes.map(migrateNodeType)
+    : [];
+  return { ...flow, nodes } as Flow;
+}
 
 function isTauriContext(): boolean {
   return "__TAURI_INTERNALS__" in window;
@@ -27,7 +41,7 @@ async function migrateFromLegacy(): Promise<Flow[]> {
   if (!legacyExists) return [];
 
   const content = await readTextFile(legacyPath);
-  const flows = JSON.parse(content) as Flow[];
+  const flows = (JSON.parse(content) as Record<string, unknown>[]).map(migrateFlowNodes);
 
   for (const flow of flows) {
     await saveFlow(flow);
@@ -83,7 +97,7 @@ export async function loadFlows(): Promise<Flow[]> {
     for (const entry of jsonFiles) {
       try {
         const content = await readTextFile(`${flowsDir}/${entry.name}`);
-        flows.push(JSON.parse(content) as Flow);
+        flows.push(migrateFlowNodes(JSON.parse(content) as Record<string, unknown>));
       } catch {
         // Skip corrupted files
       }

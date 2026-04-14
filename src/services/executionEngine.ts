@@ -2,12 +2,16 @@ import type {
   Flow,
   FlowNode,
   FlowEdge,
+  ApiNode,
+  StoreNode,
   NodeLog,
   ExecutionStatus,
   RequestConfig,
 } from "@/types";
+import { isApiNode, isStoreNode, isSequenceEdge } from "@/types";
 import { resolveEnvInRequest } from "@/utils/envResolver";
 import { CookieJar } from "@/utils/cookieJar";
+import { resolveJsonPath } from "@/utils/jsonPath";
 import { applyDataMappings } from "./dataMapper";
 import { sendWithRetry } from "./retryExecutor";
 import { validateRequest } from "./requestValidator";
@@ -23,6 +27,8 @@ export function getExecutionLevels(
 ): FlowNode[][] {
   if (nodes.length === 0) return [];
 
+  const sequenceEdges = edges.filter(isSequenceEdge);
+
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const inDegree = new Map<string, number>();
   const outEdges = new Map<string, string[]>();
@@ -32,7 +38,7 @@ export function getExecutionLevels(
     outEdges.set(node.id, []);
   }
 
-  for (const edge of edges) {
+  for (const edge of sequenceEdges) {
     inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
     outEdges.get(edge.source)!.push(edge.target);
   }
@@ -82,7 +88,7 @@ export function getExecutionOrder(
 
 function buildParentMap(edges: FlowEdge[]): Map<string, string[]> {
   const parents = new Map<string, string[]>();
-  for (const edge of edges) {
+  for (const edge of edges.filter(isSequenceEdge)) {
     const list = parents.get(edge.target) ?? [];
     list.push(edge.source);
     parents.set(edge.target, list);
@@ -90,7 +96,7 @@ function buildParentMap(edges: FlowEdge[]): Map<string, string[]> {
   return parents;
 }
 
-function buildRequestConfig(node: FlowNode): RequestConfig {
+function buildRequestConfig(node: ApiNode): RequestConfig {
   return {
     method: node.method,
     url: node.url,
@@ -101,7 +107,7 @@ function buildRequestConfig(node: FlowNode): RequestConfig {
 }
 
 function buildNodeLog(
-  node: FlowNode,
+  node: ApiNode,
   config: RequestConfig,
   status: ExecutionStatus,
   response: { status: number; headers: Record<string, string>; body: unknown; latencyMs: number } | null,
@@ -112,6 +118,7 @@ function buildNodeLog(
 ): NodeLog {
   return {
     nodeId: node.id,
+    nodeType: node.type,
     status,
     request: {
       method: config.method,
@@ -129,26 +136,96 @@ function buildNodeLog(
 }
 
 function buildSkippedLog(node: FlowNode): NodeLog {
+  const now = new Date().toISOString();
+
+  if (isApiNode(node)) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "skipped",
+      request: {
+        method: node.method,
+        url: node.url,
+        headers: node.headers,
+        body: node.body,
+      },
+      response: null,
+      error: null,
+      retryAttempts: 0,
+      validationErrors: [],
+      startedAt: now,
+      finishedAt: now,
+    };
+  }
+
   return {
     nodeId: node.id,
+    nodeType: node.type,
     status: "skipped",
-    request: {
-      method: node.method,
-      url: node.url,
-      headers: node.headers,
-      body: node.body,
-    },
+    request: null,
     response: null,
     error: null,
     retryAttempts: 0,
     validationErrors: [],
-    startedAt: new Date().toISOString(),
-    finishedAt: new Date().toISOString(),
+    startedAt: now,
+    finishedAt: now,
+  };
+}
+
+function buildPassthroughLog(node: FlowNode): NodeLog {
+  const now = new Date().toISOString();
+  return {
+    nodeId: node.id,
+    nodeType: node.type,
+    status: "success",
+    request: null,
+    response: null,
+    error: null,
+    retryAttempts: 0,
+    validationErrors: [],
+    startedAt: now,
+    finishedAt: now,
+  };
+}
+
+function executeStoreNode(
+  node: StoreNode,
+  context: Record<string, unknown>,
+): NodeLog {
+  const now = new Date().toISOString();
+  const storeResult: Record<string, unknown> = {};
+
+  for (const variable of node.variables) {
+    const sourceData = context[variable.sourceNodeId];
+    console.log(sourceData, '=>', resolveJsonPath(sourceData, variable.sourcePath));
+    if (sourceData !== undefined) {
+      storeResult[variable.name] = resolveJsonPath(sourceData, variable.sourcePath);
+    }
+  }
+
+  context[node.id] = storeResult;
+
+  return {
+    nodeId: node.id,
+    nodeType: node.type,
+    status: "success",
+    request: null,
+    response: {
+      status: 0,
+      headers: {},
+      body: storeResult,
+      latencyMs: 0,
+    },
+    error: null,
+    retryAttempts: 0,
+    validationErrors: [],
+    startedAt: now,
+    finishedAt: now,
   };
 }
 
 async function executeSingleNode(
-  node: FlowNode,
+  node: ApiNode,
   context: Record<string, unknown>,
   cookieJar: CookieJar,
   flow: Flow,
@@ -207,6 +284,31 @@ async function executeSingleNode(
   }
 }
 
+function executeNodeInWave(
+  node: FlowNode,
+  context: Record<string, unknown>,
+  waveSnapshot: CookieJar,
+  flow: Flow,
+  signal?: AbortSignal,
+): Promise<{ log: NodeLog; jar: CookieJar }> {
+  if (isApiNode(node)) {
+    const nodeJar = waveSnapshot.clone();
+    return executeSingleNode(node, context, nodeJar, flow, signal).then((log) => ({
+      log,
+      jar: nodeJar,
+    }));
+  }
+
+  if (isStoreNode(node)) {
+    const log = executeStoreNode(node, context);
+    return Promise.resolve({ log, jar: waveSnapshot.clone() });
+  }
+
+  // Start node or unknown — passthrough
+  const log = buildPassthroughLog(node);
+  return Promise.resolve({ log, jar: waveSnapshot.clone() });
+}
+
 export async function* executeFlow(
   flow: Flow,
   callbacks: EngineCallbacks,
@@ -261,13 +363,7 @@ export async function* executeFlow(
       }
 
       const results = await Promise.allSettled(
-        toExecute.map((node) => {
-          const nodeJar = waveSnapshot.clone();
-          return executeSingleNode(node, context, nodeJar, flow, signal).then((log) => ({
-            log,
-            jar: nodeJar,
-          }));
-        }),
+        toExecute.map((node) => executeNodeInWave(node, context, waveSnapshot, flow, signal)),
       );
 
       for (const result of results) {

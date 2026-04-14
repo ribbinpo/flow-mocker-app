@@ -13,7 +13,7 @@ const STATUS_STYLES: Record<ExecutionStatus, string> = {
 
 interface NodeContainerProps {
   label: string;
-  method: HttpMethod;
+  method?: HttpMethod;
   status?: ExecutionStatus;
   selected?: boolean;
   children?: ReactNode;
@@ -38,9 +38,11 @@ export function NodeContainer({
       )}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(method))}>
-          {method}
-        </span>
+        {method && (
+          <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(method))}>
+            {method}
+          </span>
+        )}
         <span className="truncate text-sm font-medium">{label}</span>
       </div>
       {children}

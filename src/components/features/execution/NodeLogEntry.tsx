@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, MinusCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, MinusCircle, Play, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NodeLog, ExecutionStatus } from "@/types";
 import { EXECUTION } from "@/utils/constants";
@@ -26,58 +26,131 @@ interface NodeLogEntryProps {
   nodeLabel: string;
 }
 
+function StartLogHeader({ log, nodeLabel }: NodeLogEntryProps) {
+  return (
+    <>
+      {STATUS_ICON[log.status]}
+      <Play className="h-3 w-3 text-green-600" />
+      <span className="truncate font-medium text-green-600">{nodeLabel}</span>
+      <span className="flex-1 text-xs text-muted-foreground">Flow started</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {STATUS_LABEL[log.status]}
+      </span>
+    </>
+  );
+}
+
+function StoreLogHeader({ log, nodeLabel }: NodeLogEntryProps) {
+  return (
+    <>
+      {STATUS_ICON[log.status]}
+      <Database className="h-3 w-3 text-violet-600" />
+      <span className="truncate font-medium text-violet-600">{nodeLabel}</span>
+      <span className="flex-1 text-xs text-muted-foreground">Variables resolved</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {STATUS_LABEL[log.status]}
+      </span>
+    </>
+  );
+}
+
+function ApiLogHeader({ log, nodeLabel }: NodeLogEntryProps) {
+  return (
+    <>
+      {STATUS_ICON[log.status]}
+      <span className="truncate font-medium">{nodeLabel}</span>
+      {log.request && (
+        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(log.request.method))}>
+          {log.request.method}
+        </span>
+      )}
+      {log.request && (
+        <span className="flex-1 truncate text-xs text-muted-foreground">
+          {log.request.url}
+        </span>
+      )}
+      {log.response && (
+        <span
+          className={cn(
+            "shrink-0 text-xs font-medium",
+            log.response.status >= 200 && log.response.status < 300
+              ? "text-green-600"
+              : "text-destructive",
+          )}
+        >
+          {log.response.status}
+        </span>
+      )}
+      {log.response && log.response.latencyMs > 0 && (
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {log.response.latencyMs}
+          {EXECUTION.LATENCY_SUFFIX}
+        </span>
+      )}
+      {log.retryAttempts > 1 && (
+        <span className="shrink-0 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700">
+          {log.retryAttempts} {EXECUTION.RETRY_ATTEMPTS_LABEL}
+        </span>
+      )}
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {STATUS_LABEL[log.status]}
+      </span>
+    </>
+  );
+}
+
+function LogHeader(props: NodeLogEntryProps) {
+  switch (props.log.nodeType) {
+    case "start":
+      return <StartLogHeader {...props} />;
+    case "store":
+      return <StoreLogHeader {...props} />;
+    default:
+      return <ApiLogHeader {...props} />;
+  }
+}
+
 export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
   const [expanded, setExpanded] = useState(false);
+
+  const isExpandable = log.nodeType === "api" || (log.nodeType === "store" && log.response !== null);
 
   return (
     <div className="rounded-md border bg-card">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent/50"
+        onClick={() => isExpandable && setExpanded(!expanded)}
+        className={cn(
+          "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+          isExpandable && "hover:bg-accent/50",
+        )}
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        {isExpandable ? (
+          expanded ? (
+            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+          )
         ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <div className="h-3 w-3 shrink-0" />
         )}
-        {STATUS_ICON[log.status]}
-        <span className="truncate font-medium">{nodeLabel}</span>
-        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(log.request.method))}>
-          {log.request.method}
-        </span>
-        <span className="flex-1 truncate text-xs text-muted-foreground">
-          {log.request.url}
-        </span>
-        {log.response && (
-          <span
-            className={cn(
-              "shrink-0 text-xs font-medium",
-              log.response.status >= 200 && log.response.status < 300
-                ? "text-green-600"
-                : "text-destructive",
-            )}
-          >
-            {log.response.status}
-          </span>
-        )}
-        {log.response && (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {log.response.latencyMs}
-            {EXECUTION.LATENCY_SUFFIX}
-          </span>
-        )}
-        {log.retryAttempts > 1 && (
-          <span className="shrink-0 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700">
-            {log.retryAttempts} {EXECUTION.RETRY_ATTEMPTS_LABEL}
-          </span>
-        )}
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {STATUS_LABEL[log.status]}
-        </span>
+        <LogHeader log={log} nodeLabel={nodeLabel} />
       </button>
 
-      {expanded && (
+      {expanded && log.nodeType === "store" && log.response && (
+        <div className="space-y-2 border-t px-3 py-2">
+          <div>
+            <p className="mb-1 text-xs font-medium text-violet-600">
+              Resolved Variables
+            </p>
+            <pre className="max-h-32 overflow-auto rounded bg-violet-50 p-2 font-mono text-xs text-violet-800">
+              {JSON.stringify(log.response.body, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {expanded && log.nodeType === "api" && (
         <div className="space-y-2 border-t px-3 py-2">
           {log.validationErrors.length > 0 && (
             <div>
@@ -103,23 +176,25 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
             </div>
           )}
 
-          <div>
-            <p className="mb-1 text-xs font-medium text-muted-foreground">
-              {EXECUTION.REQUEST_SECTION}
-            </p>
-            <pre className="max-h-32 overflow-auto rounded bg-muted p-2 font-mono text-xs">
-              {JSON.stringify(
-                {
-                  method: log.request.method,
-                  url: log.request.url,
-                  headers: log.request.headers,
-                  body: log.request.body || undefined,
-                },
-                null,
-                2,
-              )}
-            </pre>
-          </div>
+          {log.request && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                {EXECUTION.REQUEST_SECTION}
+              </p>
+              <pre className="max-h-32 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+                {JSON.stringify(
+                  {
+                    method: log.request.method,
+                    url: log.request.url,
+                    headers: log.request.headers,
+                    body: log.request.body || undefined,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </div>
+          )}
 
           {log.response && (
             <div>
