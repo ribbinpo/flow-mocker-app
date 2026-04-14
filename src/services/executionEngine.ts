@@ -8,8 +8,9 @@ import type {
   ExecutionStatus,
   RequestConfig,
 } from "@/types";
-import { isApiNode, isStoreNode, isSequenceEdge } from "@/types";
+import { isApiNode, isStoreNode, isStartNode } from "@/types";
 import { resolveEnvInRequest } from "@/utils/envResolver";
+import { resolveStoreVariablesInRequest } from "@/utils/storeResolver";
 import { CookieJar } from "@/utils/cookieJar";
 import { resolveJsonPath } from "@/utils/jsonPath";
 import { applyDataMappings } from "./dataMapper";
@@ -21,30 +22,69 @@ export interface EngineCallbacks {
   onNodeComplete: (log: NodeLog) => void;
 }
 
+/**
+ * BFS from Start node to find all reachable nodes.
+ */
+function getReachableNodes(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+): FlowNode[] {
+  const startNode = nodes.find(isStartNode);
+  if (!startNode) return nodes; // graceful fallback for old flows
+
+  const adj = new Map<string, string[]>();
+  for (const edge of edges) {
+    const list = adj.get(edge.source) ?? [];
+    list.push(edge.target);
+    adj.set(edge.source, list);
+  }
+
+  const visited = new Set<string>();
+  const queue = [startNode.id];
+  visited.add(startNode.id);
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const targetId of adj.get(current) ?? []) {
+      if (!visited.has(targetId)) {
+        visited.add(targetId);
+        queue.push(targetId);
+      }
+    }
+  }
+
+  return nodes.filter((n) => visited.has(n.id));
+}
+
 export function getExecutionLevels(
   nodes: FlowNode[],
   edges: FlowEdge[],
 ): FlowNode[][] {
   if (nodes.length === 0) return [];
 
-  const sequenceEdges = edges.filter(isSequenceEdge);
+  // Only execute nodes reachable from Start node
+  const reachable = getReachableNodes(nodes, edges);
+  const reachableIds = new Set(reachable.map((n) => n.id));
+  const reachableEdges = edges.filter(
+    (e) => reachableIds.has(e.source) && reachableIds.has(e.target),
+  );
 
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const nodeMap = new Map(reachable.map((n) => [n.id, n]));
   const inDegree = new Map<string, number>();
   const outEdges = new Map<string, string[]>();
 
-  for (const node of nodes) {
+  for (const node of reachable) {
     inDegree.set(node.id, 0);
     outEdges.set(node.id, []);
   }
 
-  for (const edge of sequenceEdges) {
+  for (const edge of reachableEdges) {
     inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
     outEdges.get(edge.source)!.push(edge.target);
   }
 
   const levels: FlowNode[][] = [];
-  let currentWave = nodes.filter((n) => inDegree.get(n.id) === 0);
+  let currentWave = reachable.filter((n) => inDegree.get(n.id) === 0);
 
   if (currentWave.length === 0) {
     throw new Error("Cycle detected in flow — cannot execute");
@@ -72,7 +112,7 @@ export function getExecutionLevels(
     currentWave = nextWave;
   }
 
-  if (processed !== nodes.length) {
+  if (processed !== reachable.length) {
     throw new Error("Cycle detected in flow — cannot execute");
   }
 
@@ -88,7 +128,7 @@ export function getExecutionOrder(
 
 function buildParentMap(edges: FlowEdge[]): Map<string, string[]> {
   const parents = new Map<string, string[]>();
-  for (const edge of edges.filter(isSequenceEdge)) {
+  for (const edge of edges) {
     const list = parents.get(edge.target) ?? [];
     list.push(edge.source);
     parents.set(edge.target, list);
@@ -235,6 +275,7 @@ async function executeSingleNode(
 
   let config = buildRequestConfig(node);
   config = resolveEnvInRequest(config, flow.envVariables);
+  config = resolveStoreVariablesInRequest(config, context);
   config = applyDataMappings(config, node.dataMapping, context);
 
   if (!cookieJar.isEmpty()) {

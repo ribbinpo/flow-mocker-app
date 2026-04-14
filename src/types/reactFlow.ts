@@ -64,14 +64,16 @@ export function toReactFlowNode(node: FlowNode): FlowReactNode {
 }
 
 export function toReactFlowEdge(edge: FlowEdge): Edge {
-  if (edge.edgeType === "variable") {
+  if (edge.edgeType === "data") {
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: "data-out",
+      targetHandle: "data-in",
       animated: false,
-      style: { strokeDasharray: "5,5", stroke: "#8b5cf6" },
-      label: edge.sourceVariable ?? "",
+      style: { stroke: "#8b5cf6", strokeWidth: 2 },
+      label: "data",
       labelStyle: { fontSize: 10, fill: "#8b5cf6" },
     };
   }

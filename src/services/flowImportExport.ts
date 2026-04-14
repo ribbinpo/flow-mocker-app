@@ -59,10 +59,7 @@ const flowEdgeSchema = z.object({
   id: z.string(),
   source: z.string(),
   target: z.string(),
-  edgeType: z.enum(["sequence", "variable"]).optional(),
-  sourceVariable: z.string().optional(),
-  targetField: z.enum(["header", "query", "body", "url"]).optional(),
-  targetKey: z.string().optional(),
+  edgeType: z.enum(["sequence", "data"]).optional(),
 });
 
 const flowImportSchema = z.object({

@@ -26,7 +26,6 @@ export function useFlowCanvas(flowId: string) {
   const removeNode = useFlowStore((s) => s.removeNode);
   const addEdge = useFlowStore((s) => s.addEdge);
   const removeEdge = useFlowStore((s) => s.removeEdge);
-  const addDataMapping = useFlowStore((s) => s.addDataMapping);
   const validateReferences = useFlowStore((s) => s.validateReferences);
   const selectNode = useUiStore((s) => s.selectNode);
 
@@ -103,27 +102,15 @@ export function useFlowCanvas(flowId: string) {
       const sourceHandle = connection.sourceHandle ?? "";
       const targetHandle = connection.targetHandle ?? "";
 
-      // Variable connection: Store variable handle -> API field handle
-      if (sourceHandle.startsWith("var-") && targetHandle.startsWith("target-")) {
-        const varName = sourceHandle.slice(4);
-        const targetField = targetHandle.slice(7) as "header" | "query" | "body" | "url";
-
-        const variableEdge: FlowEdge = {
+      // Data connection: API data-out -> Store data-in
+      if (sourceHandle === "data-out" && targetHandle === "data-in") {
+        const dataEdge: FlowEdge = {
           id: crypto.randomUUID(),
           source: connection.source,
           target: connection.target,
-          edgeType: "variable",
-          sourceVariable: varName,
-          targetField,
-          targetKey: varName,
+          edgeType: "data",
         };
-        addEdge(flowId, variableEdge);
-        addDataMapping(flowId, connection.target, {
-          sourceNodeId: connection.source,
-          sourcePath: varName,
-          targetField,
-          targetKey: varName,
-        });
+        addEdge(flowId, dataEdge);
       } else {
         // Regular sequence edge
         addEdge(flowId, {
@@ -133,7 +120,7 @@ export function useFlowCanvas(flowId: string) {
         });
       }
     },
-    [flowId, addEdge, addDataMapping],
+    [flowId, addEdge],
   );
 
   const onNodeClick = useCallback(

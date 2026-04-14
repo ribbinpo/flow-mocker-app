@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,22 +7,36 @@ import { STORE_NODE } from "@/utils/constants";
 
 interface StoreVariableEditorProps {
   variables: StoreVariable[];
-  apiNodes: ApiNode[];
-  upstreamNodeIds: Set<string>;
+  connectedApiNodes: ApiNode[];
   onChange: (variables: StoreVariable[]) => void;
 }
 
 export function StoreVariableEditor({
   variables,
-  apiNodes,
-  upstreamNodeIds,
+  connectedApiNodes,
   onChange,
 }: StoreVariableEditorProps) {
+  // Auto-fill empty sourceNodeId when exactly 1 API node is connected
+  useEffect(() => {
+    if (connectedApiNodes.length !== 1) return;
+    const onlyApiId = connectedApiNodes[0].id;
+    const needsFix = variables.some((v) => !v.sourceNodeId || !connectedApiNodes.find((n) => n.id === v.sourceNodeId));
+    if (needsFix) {
+      onChange(
+        variables.map((v) =>
+          !v.sourceNodeId || !connectedApiNodes.find((n) => n.id === v.sourceNodeId)
+            ? { ...v, sourceNodeId: onlyApiId }
+            : v,
+        ),
+      );
+    }
+  }, [connectedApiNodes, variables, onChange]);
+
   const handleAdd = () => {
     const newVariable: StoreVariable = {
       id: crypto.randomUUID(),
       name: "",
-      sourceNodeId: "",
+      sourceNodeId: connectedApiNodes.length === 1 ? connectedApiNodes[0].id : "",
       sourcePath: "",
     };
     onChange([...variables, newVariable]);
@@ -37,13 +52,25 @@ export function StoreVariableEditor({
     );
   };
 
+  const getSourceLabel = (sourceNodeId: string): string | null => {
+    const node = connectedApiNodes.find((n) => n.id === sourceNodeId);
+    if (!node) return null;
+    return `${node.label} (${node.method} ${node.url || "..."})`;
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-muted-foreground">
           {STORE_NODE.VARIABLES_SECTION}
         </label>
-        <Button variant="ghost" size="sm" onClick={handleAdd} className="h-6 px-2 text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleAdd}
+          disabled={connectedApiNodes.length === 0}
+          className="h-6 px-2 text-xs"
+        >
           <Plus className="mr-1 h-3 w-3" />
           {STORE_NODE.ADD_VARIABLE_BUTTON}
         </Button>
@@ -53,7 +80,13 @@ export function StoreVariableEditor({
         {STORE_NODE.PANEL_DESCRIPTION}
       </p>
 
-      {variables.length === 0 && (
+      {connectedApiNodes.length === 0 && (
+        <p className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+          Connect an API node's data output to this Store to capture response data.
+        </p>
+      )}
+
+      {variables.length === 0 && connectedApiNodes.length > 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">
           {STORE_NODE.NO_VARIABLES}
         </p>
@@ -83,21 +116,24 @@ export function StoreVariableEditor({
           <span className="text-xs font-medium text-muted-foreground">
             {STORE_NODE.SOURCE_NODE_LABEL}
           </span>
-          <select
-            value={variable.sourceNodeId}
-            onChange={(e) => handleUpdate(variable.id, { sourceNodeId: e.target.value })}
-            className="h-7 rounded-md border bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">{STORE_NODE.SOURCE_NODE_PLACEHOLDER}</option>
-            {apiNodes.map((n) => {
-              const isUpstream = upstreamNodeIds.has(n.id);
-              return (
-                <option key={n.id} value={n.id} disabled={!isUpstream}>
-                  {n.label} ({n.method} {n.url || "..."}){!isUpstream ? " — executes after" : ""}
+          {connectedApiNodes.length === 1 ? (
+            <p className="rounded-md border bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+              {getSourceLabel(variable.sourceNodeId) ?? "Not connected"}
+            </p>
+          ) : (
+            <select
+              value={variable.sourceNodeId}
+              onChange={(e) => handleUpdate(variable.id, { sourceNodeId: e.target.value })}
+              className="h-7 rounded-md border bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">{STORE_NODE.SOURCE_NODE_PLACEHOLDER}</option>
+              {connectedApiNodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.label} ({n.method} {n.url || "..."})
                 </option>
-              );
-            })}
-          </select>
+              ))}
+            </select>
+          )}
 
           <span className="text-xs font-medium text-muted-foreground">
             {STORE_NODE.SOURCE_PATH_LABEL}

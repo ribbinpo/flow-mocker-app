@@ -31,42 +31,27 @@ export function StoreNode({ id, data, selected }: NodeProps<StoreFlowNode>) {
         <span className="truncate text-sm font-medium">{data.label}</span>
       </div>
       {data.variableNames.length > 0 ? (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap gap-1">
           {data.variableNames.map((name) => (
-            <div key={name} className="relative flex items-center">
-              <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
-                {name}
-              </span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`var-${name}`}
-                className="!bg-violet-500 !h-2 !w-2"
-                style={{
-                  top: "auto",
-                  bottom: "auto",
-                  position: "absolute",
-                  right: -9,
-                  transform: "none",
-                }}
-              />
-            </div>
+            <span
+              key={name}
+              className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700"
+            >
+              {name}
+            </span>
           ))}
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">No variables</p>
       )}
+      <Handle type="target" position={Position.Left} className="!bg-violet-500" />
       <Handle
         type="target"
-        position={Position.Left}
-        className="!bg-violet-500"
+        position={Position.Top}
+        id="data-in"
+        className="!bg-violet-500 !h-2.5 !w-2.5"
       />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="sequence"
-        className="!bg-violet-500"
-      />
+      <Handle type="source" position={Position.Right} id="sequence" className="!bg-violet-500" />
     </div>
   );
 }

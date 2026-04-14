@@ -1,16 +1,18 @@
+import { useCallback } from "react";
 import { PanelSidebar } from "@/components/bases/PanelSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { KeyValueEditor } from "./KeyValueEditor";
 import { StoreVariableEditor } from "./StoreVariableEditor";
+import { VariablePillBar } from "./VariablePillBar";
 import { toast } from "sonner";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { NODE_CONFIG, HTTP_METHODS, START_NODE } from "@/utils/constants";
-import type { RetryConfig, ApiNode, StoreVariable } from "@/types";
+import type { RetryConfig, ApiNode, StoreVariable, FlowEdge } from "@/types";
 import { cn } from "@/lib/utils";
 import type { HttpMethod, FlowNode } from "@/types";
-import { isApiNode, isStartNode, isStoreNode } from "@/types";
+import { isApiNode, isStartNode, isStoreNode, isDataEdge } from "@/types";
 import { getMethodStyle } from "@/utils/methodColors";
 import { getUpstreamNodeIds } from "@/services/variableResolver";
 
@@ -39,6 +41,27 @@ function MethodButton({
   );
 }
 
+function getUpstreamStoreVariables(
+  nodeId: string,
+  flow: { nodes: FlowNode[]; edges: FlowEdge[] },
+): Array<{ storeLabel: string; variableName: string }> {
+  const upstream = getUpstreamNodeIds(nodeId, flow.nodes, flow.edges);
+  const result: Array<{ storeLabel: string; variableName: string }> = [];
+
+  for (const n of flow.nodes) {
+    if (isStoreNode(n) && upstream.has(n.id)) {
+      for (const v of n.variables) {
+        if (v.name) {
+          result.push({ storeLabel: n.label, variableName: v.name });
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+
 export function NodeConfigPanel() {
   const selectedNodeId = useUiStore((s) => s.selectedNodeId);
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
@@ -55,9 +78,14 @@ export function NodeConfigPanel() {
     (n) => n.id === selectedNodeId
   );
 
-  const handleUpdate = (updates: Partial<ApiNode>) => {
+  const handleApiUpdate = useCallback((updates: Partial<ApiNode>) => {
     if (!activeFlowId || !selectedNodeId) return;
     updateNode(activeFlowId, selectedNodeId, updates as Partial<FlowNode>);
+  }, [activeFlowId, selectedNodeId, updateNode]);
+
+  const handleUpdate = (updates: Partial<FlowNode>) => {
+    if (!activeFlowId || !selectedNodeId) return;
+    updateNode(activeFlowId, selectedNodeId, updates);
   };
 
   const handleDelete = () => {
@@ -69,6 +97,28 @@ export function NodeConfigPanel() {
     removeNode(activeFlowId, selectedNodeId);
     selectNode(null);
   };
+
+  const handlePillInsert = useCallback((template: string) => {
+    navigator.clipboard.writeText(template).then(() => {
+      toast.success(`Copied ${template} to clipboard`);
+    });
+  }, []);
+
+
+
+
+  // Compute connected API nodes for Store config
+  const connectedApiNodes = (node && isStoreNode(node) && flow)
+    ? flow.edges
+        .filter((e) => isDataEdge(e) && e.target === node.id)
+        .map((e) => flow.nodes.find((n) => n.id === e.source))
+        .filter((n): n is ApiNode => n !== undefined && isApiNode(n))
+    : [];
+
+  // Compute available variables for API config
+  const availableVariables = (node && isApiNode(node) && flow)
+    ? getUpstreamStoreVariables(node.id, flow)
+    : [];
 
   return (
     <PanelSidebar
@@ -98,8 +148,7 @@ export function NodeConfigPanel() {
 
           <StoreVariableEditor
             variables={node.variables}
-            apiNodes={flow?.nodes.filter(isApiNode) ?? []}
-            upstreamNodeIds={flow ? getUpstreamNodeIds(node.id, flow.nodes, flow.edges) : new Set()}
+            connectedApiNodes={connectedApiNodes}
             onChange={(variables: StoreVariable[]) => {
               if (!activeFlowId || !selectedNodeId) return;
               updateNode(activeFlowId, selectedNodeId, { variables } as Partial<FlowNode>);
@@ -120,9 +169,14 @@ export function NodeConfigPanel() {
             </label>
             <Input
               value={node.label}
-              onChange={(e) => handleUpdate({ label: e.target.value })}
+              onChange={(e) => handleApiUpdate({ label: e.target.value })}
             />
           </div>
+
+          <VariablePillBar
+            variables={availableVariables}
+            onInsert={handlePillInsert}
+          />
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">
@@ -134,7 +188,7 @@ export function NodeConfigPanel() {
                   key={m}
                   method={m}
                   selected={node.method === m}
-                  onClick={() => handleUpdate({ method: m })}
+                  onClick={() => handleApiUpdate({ method: m })}
                 />
               ))}
             </div>
@@ -146,7 +200,8 @@ export function NodeConfigPanel() {
             </label>
             <Input
               value={node.url}
-              onChange={(e) => handleUpdate({ url: e.target.value })}
+              onChange={(e) => handleApiUpdate({ url: e.target.value })}
+
               placeholder={NODE_CONFIG.URL_PLACEHOLDER}
             />
           </div>
@@ -157,7 +212,7 @@ export function NodeConfigPanel() {
             </label>
             <KeyValueEditor
               entries={node.headers}
-              onChange={(headers) => handleUpdate({ headers })}
+              onChange={(headers) => handleApiUpdate({ headers })}
             />
           </div>
 
@@ -167,7 +222,7 @@ export function NodeConfigPanel() {
             </label>
             <KeyValueEditor
               entries={node.queryParams}
-              onChange={(queryParams) => handleUpdate({ queryParams })}
+              onChange={(queryParams) => handleApiUpdate({ queryParams })}
             />
           </div>
 
@@ -178,7 +233,8 @@ export function NodeConfigPanel() {
             <textarea
               className="min-h-24 rounded-md border bg-transparent px-3 py-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={node.body}
-              onChange={(e) => handleUpdate({ body: e.target.value })}
+              onChange={(e) => handleApiUpdate({ body: e.target.value })}
+
               placeholder={NODE_CONFIG.BODY_PLACEHOLDER}
             />
           </div>
@@ -190,11 +246,11 @@ export function NodeConfigPanel() {
                 checked={!!node.retryConfig}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    handleUpdate({
+                    handleApiUpdate({
                       retryConfig: { maxRetries: 2, delayMs: 1000 },
                     });
                   } else {
-                    handleUpdate({ retryConfig: undefined });
+                    handleApiUpdate({ retryConfig: undefined });
                   }
                 }}
                 className="accent-primary"
@@ -217,7 +273,7 @@ export function NodeConfigPanel() {
                         5,
                         Math.max(1, Number(e.target.value))
                       );
-                      handleUpdate({
+                      handleApiUpdate({
                         retryConfig: {
                           ...(node.retryConfig as RetryConfig),
                           maxRetries: val,
@@ -241,7 +297,7 @@ export function NodeConfigPanel() {
                         5000,
                         Math.max(100, Number(e.target.value))
                       );
-                      handleUpdate({
+                      handleApiUpdate({
                         retryConfig: {
                           ...(node.retryConfig as RetryConfig),
                           delayMs: val,

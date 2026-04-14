@@ -43,15 +43,12 @@ function seqEdge(source: string, target: string): FlowEdge {
   return { id: `${source}-${target}`, source, target };
 }
 
-function varEdge(source: string, target: string, sourceVariable: string): FlowEdge {
+function dataEdge(source: string, target: string): FlowEdge {
   return {
-    id: `var-${source}-${target}`,
+    id: `data-${source}-${target}`,
     source,
     target,
-    edgeType: "variable",
-    sourceVariable,
-    targetField: "header",
-    targetKey: sourceVariable,
+    edgeType: "data",
   };
 }
 
@@ -83,14 +80,14 @@ describe("getUpstreamNodeIds", () => {
     expect(result).toEqual(new Set(["a", "b", "c"]));
   });
 
-  it("ignores variable edges", () => {
+  it("includes data edges as upstream", () => {
     const nodes = [makeApiNode("a"), makeApiNode("b"), makeApiNode("c")];
     const edges = [
       seqEdge("a", "b"),
-      varEdge("a", "c", "token"), // variable edge, should not count as upstream
+      dataEdge("a", "c"), // data edge counts as upstream
     ];
     const result = getUpstreamNodeIds("c", nodes, edges);
-    expect(result.size).toBe(0);
+    expect(result).toEqual(new Set(["a"]));
   });
 
   it("does not include disconnected nodes", () => {
@@ -139,12 +136,12 @@ describe("findInvalidReferences", () => {
     expect(result.removedMappingCount).toBe(1);
   });
 
-  it("detects invalid variable edge", () => {
+  it("data edge from upstream is valid", () => {
     const nodes = [makeApiNode("a"), makeApiNode("b")];
-    // Variable edge from a to b, but no sequence edge establishing a as upstream
-    const edges = [varEdge("a", "b", "token")];
+    // Data edge from a to b — a is upstream via the data edge itself
+    const edges = [dataEdge("a", "b")];
     const result = findInvalidReferences(nodes, edges);
-    expect(result.removedEdgeIds).toEqual(["var-a-b"]);
+    expect(result.removedEdgeIds).toHaveLength(0);
   });
 });
 
@@ -169,11 +166,12 @@ describe("cleanInvalidReferences", () => {
     expect(totalRemoved).toBe(1);
   });
 
-  it("removes invalid variable edges", () => {
+  it("removes data edge referencing deleted node", () => {
+    // Data edge references node "x" which doesn't exist in nodes
     const nodes = [makeApiNode("a"), makeApiNode("b")];
     const edges: FlowEdge[] = [
       seqEdge("a", "b"),
-      varEdge("b", "a", "token"), // invalid: b is downstream of a
+      dataEdge("x", "b"), // invalid: x doesn't exist
     ];
 
     const { edges: cleaned, totalRemoved } = cleanInvalidReferences(nodes, edges);

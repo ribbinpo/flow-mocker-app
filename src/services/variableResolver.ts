@@ -1,26 +1,23 @@
 import type { FlowNode, FlowEdge } from "@/types";
-import { isSequenceEdge, isApiNode, isStoreNode, isVariableEdge } from "@/types";
+import { isApiNode, isStoreNode, isDataEdge } from "@/types";
 
 /**
  * Returns the set of node IDs that execute before the given node,
- * following only sequence edges.
+ * following both sequence and data edges (both establish execution order).
  */
 export function getUpstreamNodeIds(
   nodeId: string,
   _nodes: FlowNode[],
   edges: FlowEdge[],
 ): Set<string> {
-  const sequenceEdges = edges.filter(isSequenceEdge);
-
-  // Build reverse adjacency: target -> sources
+  // Both sequence and data edges establish execution order
   const reverseAdj = new Map<string, string[]>();
-  for (const edge of sequenceEdges) {
+  for (const edge of edges) {
     const list = reverseAdj.get(edge.target) ?? [];
     list.push(edge.source);
     reverseAdj.set(edge.target, list);
   }
 
-  // BFS/DFS backwards from nodeId
   const upstream = new Set<string>();
   const queue = [nodeId];
 
@@ -46,7 +43,6 @@ export interface CleanupResult {
 
 /**
  * Validates all variable references in a flow and returns what should be removed.
- * Does NOT mutate — the caller applies the changes.
  */
 export function findInvalidReferences(
   nodes: FlowNode[],
@@ -61,7 +57,6 @@ export function findInvalidReferences(
   for (const node of nodes) {
     const upstream = getUpstreamNodeIds(node.id, nodes, edges);
 
-    // Check Store node variables
     if (isStoreNode(node)) {
       for (const variable of node.variables) {
         if (variable.sourceNodeId && !upstream.has(variable.sourceNodeId)) {
@@ -70,7 +65,6 @@ export function findInvalidReferences(
       }
     }
 
-    // Check API node data mappings
     if (isApiNode(node)) {
       for (const mapping of node.dataMapping) {
         if (mapping.sourceNodeId && !upstream.has(mapping.sourceNodeId)) {
@@ -80,11 +74,11 @@ export function findInvalidReferences(
     }
   }
 
-  // Check variable edges
+  // Check data edges — source and target nodes must exist
+  const nodeIds = new Set(nodes.map((n) => n.id));
   for (const edge of edges) {
-    if (isVariableEdge(edge)) {
-      const targetUpstream = getUpstreamNodeIds(edge.target, nodes, edges);
-      if (!targetUpstream.has(edge.source)) {
+    if (isDataEdge(edge)) {
+      if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
         result.removedEdgeIds.push(edge.id);
       }
     }
@@ -126,12 +120,12 @@ export function cleanInvalidReferences(
     return node;
   });
 
-  // Remove invalid variable edges
+  // Remove data edges where source or target node no longer exists
+  const nodeIds = new Set(cleanedNodes.map((n) => n.id));
   const invalidEdgeIds = new Set<string>();
   for (const edge of edges) {
-    if (isVariableEdge(edge)) {
-      const targetUpstream = getUpstreamNodeIds(edge.target, nodes, edges);
-      if (!targetUpstream.has(edge.source)) {
+    if (isDataEdge(edge)) {
+      if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
         invalidEdgeIds.add(edge.id);
         totalRemoved++;
       }

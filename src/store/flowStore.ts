@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Flow, FlowNode, FlowEdge, StartNode, DataMapping } from "@/types";
-import { isApiNode, isVariableEdge } from "@/types";
+import { isApiNode, isDataEdge, isStoreNode } from "@/types";
 import { cleanInvalidReferences } from "@/services/variableResolver";
 import { START_NODE } from "@/utils/constants";
 
@@ -134,14 +134,14 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         const edge = f.edges.find((e) => e.id === edgeId);
         let nodes = f.nodes;
 
-        // If removing a variable edge, also remove the matching DataMapping
-        if (edge && isVariableEdge(edge) && edge.sourceVariable) {
+        // If removing a data edge, clean up Store variables that reference the source API node
+        if (edge && isDataEdge(edge)) {
           nodes = f.nodes.map((n) => {
-            if (n.id === edge.target && isApiNode(n)) {
+            if (n.id === edge.target && isStoreNode(n)) {
               return {
                 ...n,
-                dataMapping: n.dataMapping.filter(
-                  (dm) => !(dm.sourceNodeId === edge.source && dm.sourcePath === edge.sourceVariable),
+                variables: n.variables.filter(
+                  (v) => v.sourceNodeId !== edge.source,
                 ),
               };
             }

@@ -101,16 +101,28 @@
 
 ---
 
+## Store/API UX Redesign
+**Status: COMPLETE**
+
+Replaced canvas-level variable handles with simpler data edges + config panel pills.
+
+- [x] `EdgeType` changed from `"sequence" | "variable"` to `"sequence" | "data"`
+- [x] `isDataEdge` replaces `isVariableEdge`; removed `sourceVariable`, `targetField`, `targetKey` from `FlowEdge`
+- [x] ApiNode: removed H/Q/B/U target handles, added `data-out` source handle (bottom, purple)
+- [x] StoreNode: removed per-variable `var-{name}` handles, added `data-in` target handle (top, purple)
+- [x] Data edge rendering: solid purple line with "data" label
+- [x] `onConnect`: detects `data-out` → `data-in` to create data edges
+- [x] `StoreVariableEditor`: uses `connectedApiNodes` from data edges (no upstream/disabled logic)
+- [x] `VariablePillBar`: click-to-insert `{{variableName}}` at cursor position
+- [x] `NodeConfigPanel`: shows variable pills for API nodes, auto-generates DataMapping via `templateParser`
+- [x] `templateParser.ts`: `extractVariableReferences`, `generateDataMappings` utility
+- [x] `flowStore.removeEdge`: cleans up Store variables when data edge removed
+- [x] `variableResolver`: validates data edges instead of variable edges
+- [x] Import/export schema updated for data edge type
+- [x] 10 new templateParser tests, all engine/resolver tests updated (141 total)
+
+---
+
 ## Phase 6 Summary
 
-**All 7 sub-phases complete.** 131 tests passing, TypeScript clean.
-
-| Sub-phase | Tests Added |
-|-----------|-------------|
-| 6.1 Type system | 0 (existing tests updated) |
-| 6.2 Start Node | 5 |
-| 6.3 Store Node | 8 |
-| 6.4 Edge types | 3 |
-| 6.5 Variable DnD | 0 (UI-only) |
-| 6.6 Sequence-aware | 13 |
-| 6.7 Log generalization | 0 (UI-only) |
+**All sub-phases + UX redesign complete.** 141 tests passing, TypeScript clean.

@@ -62,24 +62,21 @@ export function isStoreNode(node: FlowNode): node is StoreNode {
   return node.type === "store";
 }
 
-export type EdgeType = "sequence" | "variable";
+export type EdgeType = "sequence" | "data";
 
 export interface FlowEdge {
   id: string;
   source: string;
   target: string;
   edgeType?: EdgeType;
-  sourceVariable?: string;
-  targetField?: "header" | "query" | "body" | "url";
-  targetKey?: string;
 }
 
 export function isSequenceEdge(edge: FlowEdge): boolean {
   return !edge.edgeType || edge.edgeType === "sequence";
 }
 
-export function isVariableEdge(edge: FlowEdge): boolean {
-  return edge.edgeType === "variable";
+export function isDataEdge(edge: FlowEdge): boolean {
+  return edge.edgeType === "data";
 }
 
 export interface Flow {

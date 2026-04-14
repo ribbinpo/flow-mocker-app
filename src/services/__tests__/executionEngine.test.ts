@@ -992,76 +992,166 @@ describe("executeFlow with Store node", () => {
   });
 });
 
-function makeVariableEdge(
-  source: string,
-  target: string,
-  sourceVariable: string,
-  targetField: "header" | "query" | "body" | "url",
-  targetKey: string,
-): FlowEdge {
+function makeDataEdge(source: string, target: string): FlowEdge {
   return {
-    id: `var-${source}-${target}-${sourceVariable}`,
+    id: `data-${source}-${target}`,
     source,
     target,
-    edgeType: "variable",
-    sourceVariable,
-    targetField,
-    targetKey,
+    edgeType: "data",
   };
 }
 
-describe("variable edges", () => {
+describe("data edges", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
   });
 
-  it("variable edges do not affect execution order", () => {
+  it("data edges establish execution order (source before target)", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
-    // Sequence: a -> b. Variable edge: a -> c (should NOT create dependency)
+    // Sequence: a -> b. Data edge: a -> c (c depends on a via data)
     const edges: FlowEdge[] = [
       makeEdge("a", "b"),
-      makeVariableEdge("a", "c", "token", "header", "Auth"),
+      makeDataEdge("a", "c"),
     ];
 
     const levels = getExecutionLevels(nodes, edges);
-    // a and c should be in level 0 (c has no sequence deps), b in level 1
-    expect(levels[0].map((n) => n.id).sort()).toEqual(["a", "c"]);
-    expect(levels[1].map((n) => n.id)).toEqual(["b"]);
+    // a executes first, then b and c in parallel
+    expect(levels[0].map((n) => n.id)).toEqual(["a"]);
+    expect(levels[1].map((n) => n.id).sort()).toEqual(["b", "c"]);
   });
 
-  it("variable edges do not propagate failure", async () => {
-    mockSendWithRetry
-      .mockRejectedValueOnce(new Error("A failed"))
-      .mockResolvedValueOnce({
-        response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
-        attempts: 1,
-      });
+  it("data edges propagate failure (target skipped if source fails)", async () => {
+    mockSendWithRetry.mockRejectedValue(new Error("A failed"));
 
     const nodes = [makeNode("a"), makeNode("b")];
-    // Only a variable edge from a to b — no sequence dependency
+    // Data edge from a to b — b depends on a
     const edges: FlowEdge[] = [
-      makeVariableEdge("a", "b", "token", "header", "Auth"),
+      makeDataEdge("a", "b"),
     ];
     const flow = makeFlow(nodes, edges);
 
     const { logs } = await collectLogs(executeFlow(flow, noopCallbacks));
 
-    // Both execute in the same wave (no sequence dependency)
-    // b should NOT be skipped just because a failed via variable edge
     const bLog = logs.find((l) => l.nodeId === "b");
-    expect(bLog?.status).not.toBe("skipped");
+    expect(bLog?.status).toBe("skipped");
   });
 
-  it("mixed sequence and variable edges: sequence determines order", () => {
+  it("mixed sequence and data edges: both contribute to order", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
     const edges: FlowEdge[] = [
       makeEdge("a", "b"),
       makeEdge("b", "c"),
-      makeVariableEdge("a", "c", "token", "header", "Auth"),
+      makeDataEdge("a", "c"),
     ];
 
     const levels = getExecutionLevels(nodes, edges);
     expect(levels.map((l) => l.map((n) => n.id))).toEqual([["a"], ["b"], ["c"]]);
+  });
+
+  it("data edge alone creates dependency for Store to execute after API", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: { token: "xyz" }, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const apiA = makeNode("a");
+    const store = makeStoreNode("store-1", [
+      { id: "v1", name: "token", sourceNodeId: "a", sourcePath: "token" },
+    ]);
+    const nodes = [apiA, store];
+    // Only a data edge — should still ensure a executes before store
+    const edges: FlowEdge[] = [makeDataEdge("a", "store-1")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs[0].nodeId).toBe("a");
+    expect(logs[1].nodeId).toBe("store-1");
+    expect(logs[1].response?.body).toEqual({ token: "xyz" });
+    expect(status).toBe("success");
+  });
+});
+
+describe("start node reachability", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateRequest.mockReturnValue({ valid: true, errors: [] });
+  });
+
+  it("only executes nodes reachable from Start node", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const nodes = [
+      makeStartNode("start"),
+      makeNode("a"),
+      makeNode("b"), // standalone, not connected to start
+    ];
+    const edges = [makeEdge("start", "a")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs.map((l) => l.nodeId)).toEqual(["start", "a"]);
+    expect(logs.find((l) => l.nodeId === "b")).toBeUndefined();
+  });
+
+  it("skips disconnected chain not connected to Start", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const nodes = [
+      makeStartNode("start"),
+      makeNode("a"),
+      makeNode("c"), // disconnected chain c -> d
+      makeNode("d"),
+    ];
+    const edges = [makeEdge("start", "a"), makeEdge("c", "d")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs.map((l) => l.nodeId)).toEqual(["start", "a"]);
+  });
+
+  it("executes full connected chain from Start", async () => {
+    mockSendWithRetry.mockResolvedValue({
+      response: { status: 200, headers: {}, body: {}, latencyMs: 10 },
+      attempts: 1,
+    });
+
+    const nodes = [
+      makeStartNode("start"),
+      makeNode("a"),
+      makeNode("b"),
+      makeNode("standalone"),
+    ];
+    const edges = [makeEdge("start", "a"), makeEdge("a", "b")];
+    const flow = makeFlow(nodes, edges);
+
+    const { logs, status } = await collectLogs(executeFlow(flow, noopCallbacks));
+
+    expect(logs.map((l) => l.nodeId)).toEqual(["start", "a", "b"]);
+    expect(status).toBe("success");
+  });
+
+  it("getExecutionLevels excludes unreachable nodes", () => {
+    const nodes = [
+      makeStartNode("start"),
+      makeNode("a"),
+      makeNode("b"),
+      makeNode("x"), // not connected
+    ];
+    const edges = [makeEdge("start", "a"), makeEdge("a", "b")];
+
+    const levels = getExecutionLevels(nodes, edges);
+    const allIds = levels.flat().map((n) => n.id);
+    expect(allIds).toEqual(["start", "a", "b"]);
+    expect(allIds).not.toContain("x");
   });
 });

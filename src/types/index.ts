@@ -13,7 +13,7 @@ export type {
   Flow,
 } from "./flow";
 
-export { isApiNode, isStartNode, isStoreNode, isSequenceEdge, isVariableEdge } from "./flow";
+export { isApiNode, isStartNode, isStoreNode, isSequenceEdge, isDataEdge } from "./flow";
 
 export type {
   ExecutionStatus,
