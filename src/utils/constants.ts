@@ -14,7 +14,7 @@ export const DEFAULT_HEADERS: Record<string, string> = {
 
 export const API_TIMEOUT_MS = 30_000;
 
-export const APP_NAME = "Flow Mocker";
+export const APP_NAME = "AFSeal";
 
 export const STORAGE_DIR_NAME = "flows";
 export const LEGACY_STORAGE_FILE_NAME = "flows.json";

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    flow_mocker_app_lib::run()
+    afseal_lib::run()
 }

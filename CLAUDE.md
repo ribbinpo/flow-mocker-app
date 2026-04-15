@@ -1,4 +1,4 @@
-# Project: Flow Mocker
+# Project: AFSeal
 
 ## Overview
 This project is a developer tool for testing REST APIs as connected workflows instead of isolated requests. It lets users chain API calls, pass data between steps, and run full flows to simulate real scenarios, making debugging and testing faster and more efficient.

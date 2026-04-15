@@ -1,4 +1,4 @@
-# Flow Mocker — Architecture
+# AFSeal — Architecture
 
 ## 1. High-Level Overview
 
@@ -229,7 +229,7 @@ The context map is a `Record<nodeId, unknown>` holding each node's parsed respon
 ### flowStorage
 - Save: serializes `Flow[]` → JSON → writes to Tauri app data dir via `@tauri-apps/plugin-fs`
 - Load: reads JSON on app launch → hydrates `flowStore`
-- File location: `$APPDATA/flow-mocker/flows.json`
+- File location: `$APPDATA/afseal/flows.json`
 
 ### envResolver
 - Scans strings for `{{variable}}` patterns

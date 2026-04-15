@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Flow Mocker are documented in this file.
+All notable changes to AFSeal are documented in this file.
 
 ## [0.1.0] - 2026-04-12
 
