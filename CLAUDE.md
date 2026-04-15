@@ -72,6 +72,7 @@ src/
 - Phase 5: Polish & Release → ✅ Complete
 - Phase 6: Operation Node → ✅ Complete
 - Phase 7: API Catalog → ✅ Complete
+- Phase 8: Local MCP Tools  →
 
 ### Core Features (Completed)
 - Flow builder (React Flow)
