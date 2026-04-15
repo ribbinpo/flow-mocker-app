@@ -80,7 +80,7 @@ export function EnvironmentManager({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="min-w-2xl">
         <DialogHeader>
           <DialogTitle>{ENVIRONMENT.MANAGER_TITLE}</DialogTitle>
           <DialogDescription>{ENVIRONMENT.MANAGER_DESCRIPTION}</DialogDescription>

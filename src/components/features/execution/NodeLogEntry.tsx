@@ -56,46 +56,48 @@ function StoreLogHeader({ log, nodeLabel }: NodeLogEntryProps) {
 
 function ApiLogHeader({ log, nodeLabel }: NodeLogEntryProps) {
   return (
-    <>
-      {STATUS_ICON[log.status]}
-      <span className="truncate font-medium">{nodeLabel}</span>
-      {log.request && (
-        <span className={cn("rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(log.request.method))}>
-          {log.request.method}
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex items-center gap-2">
+        {STATUS_ICON[log.status]}
+        <span className="truncate font-medium">{nodeLabel}</span>
+        {log.request && (
+          <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-xs font-bold", getMethodStyle(log.request.method))}>
+            {log.request.method}
+          </span>
+        )}
+        {log.response && (
+          <span
+            className={cn(
+              "shrink-0 text-xs font-medium",
+              log.response.status >= 200 && log.response.status < 300
+                ? "text-green-600"
+                : "text-destructive",
+            )}
+          >
+            {log.response.status}
+          </span>
+        )}
+        {log.response && log.response.latencyMs > 0 && (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {log.response.latencyMs}
+            {EXECUTION.LATENCY_SUFFIX}
+          </span>
+        )}
+        {log.retryAttempts > 1 && (
+          <span className="shrink-0 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700">
+            {log.retryAttempts} {EXECUTION.RETRY_ATTEMPTS_LABEL}
+          </span>
+        )}
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {STATUS_LABEL[log.status]}
         </span>
-      )}
+      </div>
       {log.request && (
-        <span className="flex-1 truncate text-xs text-muted-foreground">
+        <span className="truncate text-xs text-muted-foreground">
           {log.request.url}
         </span>
       )}
-      {log.response && (
-        <span
-          className={cn(
-            "shrink-0 text-xs font-medium",
-            log.response.status >= 200 && log.response.status < 300
-              ? "text-green-600"
-              : "text-destructive",
-          )}
-        >
-          {log.response.status}
-        </span>
-      )}
-      {log.response && log.response.latencyMs > 0 && (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {log.response.latencyMs}
-          {EXECUTION.LATENCY_SUFFIX}
-        </span>
-      )}
-      {log.retryAttempts > 1 && (
-        <span className="shrink-0 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700">
-          {log.retryAttempts} {EXECUTION.RETRY_ATTEMPTS_LABEL}
-        </span>
-      )}
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {STATUS_LABEL[log.status]}
-      </span>
-    </>
+    </div>
   );
 }
 
@@ -143,7 +145,7 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
             <p className="mb-1 text-xs font-medium text-violet-600">
               Resolved Variables
             </p>
-            <pre className="max-h-32 overflow-auto rounded bg-violet-50 p-2 font-mono text-xs text-violet-800">
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-violet-50 p-2 font-mono text-xs text-violet-800">
               {JSON.stringify(log.response.body, null, 2)}
             </pre>
           </div>
@@ -170,7 +172,7 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
               <p className="mb-1 text-xs font-medium text-destructive">
                 {EXECUTION.ERROR_SECTION}
               </p>
-              <pre className="rounded bg-destructive/10 p-2 text-xs text-destructive">
+              <pre className="whitespace-pre-wrap break-all rounded bg-destructive/10 p-2 text-xs text-destructive">
                 {log.error}
               </pre>
             </div>
@@ -181,7 +183,7 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
               <p className="mb-1 text-xs font-medium text-muted-foreground">
                 {EXECUTION.REQUEST_SECTION}
               </p>
-              <pre className="max-h-32 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono text-xs">
                 {JSON.stringify(
                   {
                     method: log.request.method,
@@ -201,7 +203,7 @@ export function NodeLogEntry({ log, nodeLabel }: NodeLogEntryProps) {
               <p className="mb-1 text-xs font-medium text-muted-foreground">
                 {EXECUTION.RESPONSE_SECTION}
               </p>
-              <pre className="max-h-32 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono text-xs">
                 {JSON.stringify(
                   {
                     status: log.response.status,

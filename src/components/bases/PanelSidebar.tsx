@@ -23,7 +23,7 @@ export function PanelSidebar({
   return (
     <aside
       className={cn(
-        "flex h-full w-80 flex-col border-l bg-card",
+        "flex h-full w-96 flex-col border-l bg-card",
         className,
       )}
     >

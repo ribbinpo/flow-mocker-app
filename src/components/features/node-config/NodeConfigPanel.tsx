@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { PanelSidebar } from "@/components/bases/PanelSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { KeyValueEditor } from "./KeyValueEditor";
@@ -116,12 +115,10 @@ export function NodeConfigPanel() {
     ? getUpstreamStoreVariables(node.id, flow)
     : [];
 
+  if (!(sidebarOpen && node)) return null;
+
   return (
-    <PanelSidebar
-      title={NODE_CONFIG.PANEL_TITLE}
-      open={sidebarOpen && !!node}
-      onClose={() => selectNode(null)}
-    >
+    <div className="flex flex-col gap-4">
       {node && isStartNode(node) && (
         <div className="flex flex-col gap-4">
           <p className="text-xs text-muted-foreground">
@@ -311,7 +308,7 @@ export function NodeConfigPanel() {
           </Button>
         </div>
       )}
-    </PanelSidebar>
+    </div>
   );
 }
 
