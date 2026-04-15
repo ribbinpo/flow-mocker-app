@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Upload, Workflow } from "lucide-react";
+import { Plus, Upload, Workflow, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +13,10 @@ import {
 import { EmptyState } from "@/components/bases/EmptyState";
 import { FlowCard } from "@/components/features/flow-list/FlowCard";
 import { CreateFlowDialog } from "@/components/features/flow-list/CreateFlowDialog";
+import { CatalogDialog } from "@/components/features/catalog/CatalogDialog";
 import { useFlowStore } from "@/store/flowStore";
 import { useFlowImportExport } from "@/hooks/useFlowImportExport";
-import { FLOW_LIST, APP_NAME, IMPORT_EXPORT } from "@/utils/constants";
+import { FLOW_LIST, APP_NAME, IMPORT_EXPORT, API_CATALOG } from "@/utils/constants";
 
 export function FlowListPage() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export function FlowListPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -68,6 +70,10 @@ export function FlowListPage() {
           <p className="text-sm text-muted-foreground">{APP_NAME}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCatalogOpen(true)}>
+            <BookOpen />
+            {API_CATALOG.DIALOG_TITLE}
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload />
             {IMPORT_EXPORT.IMPORT_BUTTON}
@@ -124,6 +130,11 @@ export function FlowListPage() {
         onConfirm={handleRename}
         title={FLOW_LIST.RENAME_DIALOG_TITLE}
         defaultValue={renameFlowObj?.name ?? ""}
+      />
+
+      <CatalogDialog
+        open={catalogOpen}
+        onOpenChange={setCatalogOpen}
       />
 
       <Dialog

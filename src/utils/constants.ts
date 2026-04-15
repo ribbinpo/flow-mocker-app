@@ -18,6 +18,8 @@ export const APP_NAME = "Flow Mocker";
 
 export const STORAGE_DIR_NAME = "flows";
 export const LEGACY_STORAGE_FILE_NAME = "flows.json";
+export const CATALOG_STORAGE_DIR_NAME = "catalog";
+export const CATALOG_STORAGE_FILE_NAME = "catalog.json";
 
 export const FLOW_LIST = {
   PAGE_TITLE: "My Flows",
@@ -130,6 +132,7 @@ export const EXECUTION = {
 
 export const PERSISTENCE = {
   SAVED_MESSAGE: "Flows saved",
+  CATALOG_SAVED_MESSAGE: "Catalog saved",
 } as const;
 
 export const IMPORT_EXPORT = {
@@ -142,6 +145,50 @@ export const IMPORT_EXPORT = {
   IMPORT_ERROR_READ_FAILED: "Failed to read file",
   EXPORT_TOOLTIP: "Export as JSON",
   IMPORT_TOOLTIP: "Import flow from JSON file",
+} as const;
+
+export const API_CATALOG = {
+  DIALOG_TITLE: "API Catalog",
+  DIALOG_DESCRIPTION: "Reusable API request templates",
+  CREATE_BUTTON: "New Entry",
+  IMPORT_BUTTON: "Import",
+  EMPTY_TITLE: "No catalog entries",
+  EMPTY_DESCRIPTION: "Create entries manually or import from Postman/cURL.",
+  FORM_NAME: "Name",
+  FORM_DESCRIPTION: "Description",
+  FORM_TAGS: "Tags",
+  FORM_TAGS_PLACEHOLDER: "Comma-separated tags",
+  FORM_METHOD: "Method",
+  FORM_URL: "URL",
+  FORM_URL_PLACEHOLDER: "https://api.example.com/endpoint",
+  FORM_HEADERS: "Headers",
+  FORM_QUERY_PARAMS: "Query Parameters",
+  FORM_BODY: "Body",
+  FORM_BODY_PLACEHOLDER: '{ "key": "value" }',
+  FORM_SAVE: "Save",
+  FORM_CANCEL: "Cancel",
+  IMPORT_DIALOG_TITLE: "Import API Catalog",
+  IMPORT_POSTMAN_TAB: "Postman Collection",
+  IMPORT_CURL_TAB: "cURL Command",
+  IMPORT_CURL_PLACEHOLDER: "Paste cURL command here...",
+  IMPORT_POSTMAN_BUTTON: "Select File",
+  IMPORT_CURL_BUTTON: "Import",
+  IMPORT_SUCCESS: "Imported successfully",
+  IMPORT_ERROR: "Import failed",
+  DELETE_CONFIRM: "Are you sure you want to delete this catalog entry?",
+  TOOLBAR_POPOVER_EMPTY: "Create empty",
+  TOOLBAR_POPOVER_CATALOG: "From catalog",
+  SEARCH_PLACEHOLDER: "Search catalog...",
+  FOLDER_NEW: "New Folder",
+  FOLDER_DEFAULT_NAME: "New Folder",
+  FOLDER_RENAME: "Rename",
+  FOLDER_DELETE_CONFIRM: "Delete this folder? Entries will be moved to root.",
+  FOLDER_ALL: "All Entries",
+  FOLDER_ROOT: "Uncategorized",
+  FORM_FOLDER: "Folder",
+  FORM_FOLDER_NONE: "None (root)",
+  MOVE_TO_FOLDER: "Move to folder",
+  MOVE_TO_ROOT: "Move to root",
 } as const;
 
 export const SHORTCUTS = {

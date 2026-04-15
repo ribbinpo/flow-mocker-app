@@ -71,6 +71,7 @@ src/
 - Phase 4: API Integration → ✅ Complete
 - Phase 5: Polish & Release → ✅ Complete
 - Phase 6: Operation Node → ✅ Complete
+- Phase 7: API Catalog → ✅ Complete
 
 ### Core Features (Completed)
 - Flow builder (React Flow)
@@ -92,7 +93,16 @@ src/
 - **Engine:** executionEngine, dataMapper, retryExecutor, variableResolver  
 - **API:** apiClient, requestValidator  
 - **Utils:** jsonPath, envResolver, cookieJar  
-- **Hooks:** useFlowCanvas, useFlowExecution, useFlowPersistence  
+- **Catalog:** catalogStore, catalogStorage, curlParser, postmanParser  
+- **Hooks:** useFlowCanvas, useFlowExecution, useFlowPersistence, useCatalogPersistence  
+
+### Phase 7 Features (Completed)
+- API Catalog (reusable request templates)
+- Postman Collection v2.1 import
+- cURL command import
+- Catalog management dialog (create, edit, delete, search)
+- Node creation popover (empty vs from catalog)
+- Catalog persistence (Tauri FS)
 
 ### In Progress
 (none)

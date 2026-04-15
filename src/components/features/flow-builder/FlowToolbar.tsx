@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Plus, Database, Play, SkipForward, Square, Settings2 } from "lucide-react";
+import { ArrowLeft, Download, Database, Play, SkipForward, Square, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EnvVariablesDialog } from "./EnvVariablesDialog";
+import { CatalogPickerPopover } from "@/components/features/catalog/CatalogPickerPopover";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { useExecutionStore } from "@/store/executionStore";
@@ -21,7 +22,7 @@ import {
   IMPORT_EXPORT,
   SHORTCUTS,
 } from "@/utils/constants";
-import type { ApiNode, StoreNode } from "@/types";
+import type { ApiNode, StoreNode, CatalogEntry } from "@/types";
 
 interface FlowToolbarProps {
   flowId: string;
@@ -53,6 +54,22 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
       headers: { ...DEFAULT_HEADERS },
       queryParams: {},
       body: DEFAULT_NODE.BODY,
+      dataMapping: [],
+      position: getNextPosition(),
+    };
+    addNode(flowId, node);
+  }, [flowId, addNode, getNextPosition]);
+
+  const handleAddFromCatalog = useCallback((entry: CatalogEntry) => {
+    const node: ApiNode = {
+      id: crypto.randomUUID(),
+      type: "api",
+      label: entry.name,
+      method: entry.method,
+      url: entry.url,
+      headers: { ...entry.headers },
+      queryParams: { ...entry.queryParams },
+      body: entry.body,
       dataMapping: [],
       position: getNextPosition(),
     };
@@ -188,15 +205,11 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
 
         <div className="h-5 w-px bg-border" />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="sm" onClick={handleAddNode} disabled={isRunning}>
-              <Plus />
-              {FLOW_BUILDER.TOOLBAR_ADD_API_NODE}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{SHORTCUTS.ADD_NODE}</TooltipContent>
-        </Tooltip>
+        <CatalogPickerPopover
+          onAddEmpty={handleAddNode}
+          onAddFromCatalog={handleAddFromCatalog}
+          disabled={isRunning}
+        />
 
         <Tooltip>
           <TooltipTrigger asChild>

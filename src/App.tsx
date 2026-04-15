@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import FlowListPage from "@/pages/FlowListPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import { useFlowPersistence } from "@/hooks/useFlowPersistence";
+import { useCatalogPersistence } from "@/hooks/useCatalogPersistence";
 
 export function App() {
   useFlowPersistence();
+  useCatalogPersistence();
 
   return (
     <TooltipProvider>

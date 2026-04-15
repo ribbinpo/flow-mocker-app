@@ -183,6 +183,82 @@ Call API → Fail → Show error → Retry → Success → Done
 | POST | /auth/login | Get token |
 | GET | /user/profile | Protected API |
 
+---
+
+## Phase 6: Operation Node
+**Goal:** Polymorphic node types with Store node and variable system  
+**Depends on:** Phase 5 ✅
+
+### Deliverables
+- [x] Store node type with variable definitions
+- [x] Variable drag-and-drop (Store → API field handles)
+- [x] Sequence-aware variable availability + auto-cleanup
+- [x] Dual edge system (sequence vs variable)
+
+### Checkpoint 6 ✅
+```
+All verified:
+- [x] Store node persists variables
+- [x] Variables resolve correctly during execution
+- [x] Dual edge system works (sequence + data)
+- [x] CLAUDE.md updated
+```
+
+---
+
+## Phase 7: API Catalog
+**Goal:** Reusable API request template library with import support  
+**Depends on:** Phase 6 ✅
+
+### Deliverables
+
+#### 7.1 Catalog Management
+- [ ] `CatalogEntry` type (name, description, tags, method, url, headers, queryParams, body)
+- [ ] Zustand store for catalog entries (CRUD operations)
+- [ ] Persistence via Tauri FS (`{appDataDir}/catalog/catalog.json`)
+- [ ] Auto-save with debounce (same pattern as flow persistence)
+
+#### 7.2 Import Support
+- [ ] Postman Collection v2.1 JSON parser
+  - [ ] Recursive folder traversal → tags
+  - [ ] Extract method, url, headers, query params, body
+  - [ ] Preserve Postman `{{variable}}` syntax
+- [ ] cURL command parser
+  - [ ] Support: -X, -H, -d/--data, -u, URL detection
+  - [ ] Auto-detect method (POST if body present)
+  - [ ] Parse query params from URL
+- [ ] Unit tests for both parsers
+
+#### 7.3 Catalog UI
+- [ ] Catalog management dialog (create, edit, delete entries)
+- [ ] Search/filter by name and tags
+- [ ] Import dialog with tabs (Postman file upload / cURL paste)
+- [ ] Accessible from both FlowListPage and FlowBuilderPage
+
+#### 7.4 Node Creation Integration
+- [ ] API button in FlowToolbar shows popover with two options:
+  1. "Create empty" — existing behavior
+  2. "From catalog" — opens catalog picker, creates node from selected entry
+- [ ] Catalog entry → ApiNode conversion (one-way stamp, not a live link)
+
+### Checkpoint 7 ✅
+```
+Verify ALL before proceeding:
+- [ ] Catalog entries persist across app restarts
+- [ ] Postman collection import creates correct entries
+- [ ] cURL import handles common formats (GET, POST with headers/body)
+- [ ] Catalog entries can be edited and deleted
+- [ ] Node created from catalog has correct method, url, headers, body
+- [ ] "Create empty" still works as before
+- [ ] All unit tests pass
+- [ ] `npm run build` — zero errors
+- [ ] No `any` types, no hardcoded strings
+- [ ] CLAUDE.md updated
+```
+→ DO NOT proceed to Phase 8 until ALL boxes checked
+
+---
+
 ## Appendix: Notes
 - Focus REST API only in v1
 - No collaboration/multi-user in this phase
