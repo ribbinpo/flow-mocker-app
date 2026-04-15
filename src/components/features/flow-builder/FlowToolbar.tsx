@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Database, Play, SkipForward, Square, Settings2 } from "lucide-react";
+import { ArrowLeft, Download, Database, Play, SkipForward, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { EnvVariablesDialog } from "./EnvVariablesDialog";
+import { EnvironmentSelector } from "@/components/features/environment/EnvironmentSelector";
+import { EnvironmentManager } from "@/components/features/environment/EnvironmentManager";
 import { CatalogPickerPopover } from "@/components/features/catalog/CatalogPickerPopover";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
@@ -18,7 +19,6 @@ import {
   DEFAULT_HEADERS,
   STORE_NODE,
   EXECUTION,
-  ENV_EDITOR,
   IMPORT_EXPORT,
   SHORTCUTS,
 } from "@/utils/constants";
@@ -36,7 +36,7 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
   const { isRunning, isStepMode, runFlow, stepNext, stopRun, toggleStepMode } =
     useFlowExecution(flowId);
   const { exportFlow } = useFlowImportExport();
-  const [envDialogOpen, setEnvDialogOpen] = useState(false);
+  const [envManagerOpen, setEnvManagerOpen] = useState(false);
 
   const getNextPosition = useCallback(() => {
     const nodes = useFlowStore.getState().flows.find((f) => f.id === flowId)?.nodes ?? [];
@@ -122,20 +122,10 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
           {flow?.name ?? FLOW_BUILDER.UNTITLED_FLOW}
         </h1>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setEnvDialogOpen(true)}
-              disabled={isRunning}
-            >
-              <Settings2 />
-              {ENV_EDITOR.BUTTON_LABEL}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{ENV_EDITOR.DIALOG_TITLE}</TooltipContent>
-        </Tooltip>
+        <EnvironmentSelector
+          onManageClick={() => setEnvManagerOpen(true)}
+          disabled={isRunning}
+        />
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -222,10 +212,9 @@ export function FlowToolbar({ flowId }: FlowToolbarProps) {
         </Tooltip>
       </div>
 
-      <EnvVariablesDialog
-        flowId={flowId}
-        open={envDialogOpen}
-        onOpenChange={setEnvDialogOpen}
+      <EnvironmentManager
+        open={envManagerOpen}
+        onOpenChange={setEnvManagerOpen}
       />
     </>
   );

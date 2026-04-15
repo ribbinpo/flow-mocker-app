@@ -5,10 +5,12 @@ import FlowListPage from "@/pages/FlowListPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import { useFlowPersistence } from "@/hooks/useFlowPersistence";
 import { useCatalogPersistence } from "@/hooks/useCatalogPersistence";
+import { useEnvironmentPersistence } from "@/hooks/useEnvironmentPersistence";
 
 export function App() {
   useFlowPersistence();
   useCatalogPersistence();
+  useEnvironmentPersistence();
 
   return (
     <TooltipProvider>

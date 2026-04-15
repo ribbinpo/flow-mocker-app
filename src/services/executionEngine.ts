@@ -11,11 +11,18 @@ import type {
 import { isApiNode, isStoreNode, isStartNode } from "@/types";
 import { resolveEnvInRequest } from "@/utils/envResolver";
 import { resolveStoreVariablesInRequest } from "@/utils/storeResolver";
+import { useEnvironmentStore } from "@/store/environmentStore";
 import { CookieJar } from "@/utils/cookieJar";
 import { resolveJsonPath } from "@/utils/jsonPath";
 import { applyDataMappings } from "./dataMapper";
 import { sendWithRetry } from "./retryExecutor";
 import { validateRequest } from "./requestValidator";
+
+function getResolvedEnvVariables(flowEnvVars: Record<string, string>): Record<string, string> {
+  const activeEnv = useEnvironmentStore.getState().getActiveEnvironment();
+  const envVars = activeEnv?.variables ?? {};
+  return { ...flowEnvVars, ...envVars };
+}
 
 export interface EngineCallbacks {
   onNodeStart: (nodeId: string) => void;
@@ -274,7 +281,7 @@ async function executeSingleNode(
   const startedAt = new Date().toISOString();
 
   let config = buildRequestConfig(node);
-  config = resolveEnvInRequest(config, flow.envVariables);
+  config = resolveEnvInRequest(config, getResolvedEnvVariables(flow.envVariables));
   config = resolveStoreVariablesInRequest(config, context);
   config = applyDataMappings(config, node.dataMapping, context);
 

@@ -30,3 +30,5 @@ export type { ApiNodeData, ApiFlowNode } from "./reactFlow";
 export { toReactFlowNode, toReactFlowEdge } from "./reactFlow";
 
 export type { CatalogFolder, CatalogFolderDraft, CatalogEntry, CatalogEntryDraft } from "./catalog";
+
+export type { Environment } from "./environment";

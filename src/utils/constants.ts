@@ -20,6 +20,8 @@ export const STORAGE_DIR_NAME = "flows";
 export const LEGACY_STORAGE_FILE_NAME = "flows.json";
 export const CATALOG_STORAGE_DIR_NAME = "catalog";
 export const CATALOG_STORAGE_FILE_NAME = "catalog.json";
+export const ENVIRONMENT_STORAGE_DIR_NAME = "environments";
+export const ENVIRONMENT_STORAGE_FILE_NAME = "environments.json";
 
 export const FLOW_LIST = {
   PAGE_TITLE: "My Flows",
@@ -133,6 +135,7 @@ export const EXECUTION = {
 export const PERSISTENCE = {
   SAVED_MESSAGE: "Flows saved",
   CATALOG_SAVED_MESSAGE: "Catalog saved",
+  ENVIRONMENTS_SAVED_MESSAGE: "Environments saved",
 } as const;
 
 export const IMPORT_EXPORT = {
@@ -189,6 +192,23 @@ export const API_CATALOG = {
   FORM_FOLDER_NONE: "None (root)",
   MOVE_TO_FOLDER: "Move to folder",
   MOVE_TO_ROOT: "Move to root",
+} as const;
+
+export const ENVIRONMENT = {
+  SELECTOR_PLACEHOLDER: "No Environment",
+  MANAGER_TITLE: "Manage Environments",
+  MANAGER_DESCRIPTION: "Create and manage environment variable sets.",
+  CREATE_BUTTON: "New Environment",
+  CREATE_PLACEHOLDER: "Environment name...",
+  RENAME_PLACEHOLDER: "Environment name",
+  DELETE_CONFIRM: "Delete this environment?",
+  VARIABLES_SECTION: "Variables",
+  VARIABLES_DESCRIPTION: "Use {{VARIABLE_NAME}} in URLs, headers, query params, and body.",
+  EMPTY_TITLE: "No environments",
+  EMPTY_DESCRIPTION: "Create an environment to define reusable variables.",
+  NO_VARIABLES: "No variables defined",
+  VARIABLE_KEY_PLACEHOLDER: "VARIABLE_NAME",
+  VARIABLE_VALUE_PLACEHOLDER: "value",
 } as const;
 
 export const SHORTCUTS = {
